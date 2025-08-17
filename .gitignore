@@ -1,0 +1,29 @@
+# Dependencies
+frontend/node_modules/
+APIBuild/node_modules/
+**/node_modules/
+
+# Environment files
+APIBuild/.env*
+.env*
+
+# Large binaries and builds
+ffmpeg-2025-06-17-git-ee1f79b0fa-full_build/
+ffmpeg-2025-06-17-git-ee1f79b0fa-full_build.7z
+*.exe
+*.7z
+*.zip
+
+# Cache directories
+**/.cache/
+**/dist/
+**/build/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

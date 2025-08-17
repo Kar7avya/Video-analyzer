@@ -1,0 +1,81 @@
+/* Reset default spacing */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Navbar Styles */
+.navbar {
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
+  padding: 0.8rem 1.5rem;
+  background-color: transparent;
+  backdrop-filter: blur(0px);
+  box-shadow: none;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+  z-index: 1030;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scrolled Glass Effect */
+.scrolled-navbar {
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Container holds logo and nav links */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Branding */
+.navbar .navbar-brand {
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* Navigation links */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.nav-link:hover,
+.navbar-brand:hover {
+  color: #f0f0f0;
+}
+
+/* Active link */
+.nav-link.active {
+  font-weight: bold;
+  border-bottom: 2px solid white;
+}
+
+/* Adjust body padding only if required */
+body {
+  margin: 0;
+  font-family: sans-serif;
+  padding-top: 70px; /* Only if your content goes under the navbar */
+}

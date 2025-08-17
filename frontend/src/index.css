@@ -1,0 +1,185 @@
+/* General body styles - ensure content is not hidden by fixed navbar */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 56px; /* Adjust this value based on your actual fixed navbar's height */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* --- Hero Section Gradient Background (Existing) --- */
+.hero-section {
+  background: linear-gradient(to right, #4c2d7f, #6a0dad);
+  background-color: #4c2d7f; /* Fallback */
+}
+
+/* --- Upload Area Dashed Border (Existing) --- */
+.upload-area.border-dashed {
+  border-style: dashed !important;
+  transition: border-color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+/* --- Navbar Glass Effect CSS (Added/Refined) --- */
+.navbar {
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
+  padding: 0.8rem 1rem;
+  background-color: transparent; /* Default: start fully transparent */
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  box-shadow: none;
+  position: fixed; /* Make it stick to the top */
+  width: 100%; /* Ensure it spans full width */
+  top: 0;
+  left: 0;
+  z-index: 1030; /* Standard Bootstrap z-index for navbars */
+}
+
+.scrolled-navbar {
+  background-color: rgba(0, 0, 0, 0.6); /* Dark transparent background */
+  backdrop-filter: blur(10px);          /* Glass blur */
+  -webkit-backdrop-filter: blur(10px);  /* Safari support */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Darker, more visible shadow */
+}
+
+/* Make sure navbar links and brand are always visible and adapt */
+.navbar .nav-link,
+.navbar .navbar-brand {
+  color: #fff !important; /* White text for default transparent background */
+  font-size: 1.1rem; /* Standard link size */
+  font-weight: 500; /* Medium weight */
+  transition: color 0.3s ease; /* Smooth color transition */
+}
+
+.scrolled-navbar .nav-link,
+.scrolled-navbar .navbar-brand {
+  color: #fff !important; /* Keep white text on dark transparent background */
+}
+
+/* Navbar brand specific styling */
+.navbar-brand {
+  font-size: 1.8rem; /* Larger for brand */
+  font-weight: bolder; /* Keep bolder for brand */
+}
+
+/* Optional: Highlight active link */
+.nav-link.active {
+  font-weight: bold;
+  border-bottom: 2px solid white; /* White border for active link */
+}
+
+/* Navbar on mobile (toggler icon color) */
+.navbar-toggler {
+  border: none;
+  filter: invert(1); /* Makes a dark icon white, or vice versa */
+}
+
+/* --- Feature Card Enhancements (Added) --- */
+.card.feature-card { /* Target cards with this custom class */
+  border: none; /* Remove default Bootstrap border if you want a cleaner look */
+  border-radius: 0.75rem; /* More rounded corners */
+  overflow: hidden; /* Ensures content/shadows don't spill out */
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Smooth hover effect */
+}
+
+.card.feature-card:hover {
+  transform: translateY(-5px); /* Lift card slightly on hover */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); /* More pronounced shadow on hover */
+}
+
+/* Ensure icons are consistently sized and positioned within feature cards */
+.card.feature-card .card-body .bi {
+  font-size: 3rem; /* Consistent icon size */
+  margin-bottom: 1rem; /* Space below icon */
+  display: inline-block; /* Ensure margin bottom works */
+}
+
+/* Adjust heading and paragraph spacing within feature cards */
+.card.feature-card .card-body h4 {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.card.feature-card .card-body p.text-muted {
+  line-height: 1.6; /* Improve readability */
+}
+
+
+/* --- CLARITY STEP LOADER CSS (Existing) --- */
+
+.clarity-step-loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%; /* Fill parent height */
+  width: 100%;
+  max-width: 700px; /* Max width for the entire loader */
+  margin: auto; /* Center horizontally */
+}
+
+.loader-letters-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* 7 columns for C L A R I T Y */
+  gap: 5px; /* Small gap between letter boxes */
+  width: 100%;
+  max-width: 560px; /* 80px * 7 letters = 560px (assuming 80x80 viewBox for each letter) */
+  margin-bottom: 1rem;
+}
+
+.loader-letter-box {
+  width: 80px; /* Fixed width for each letter SVG container */
+  height: 80px; /* Fixed height for each letter SVG container */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.loader-letter-box svg {
+  width: 100%;
+  height: 100%;
+  display: block; /* Remove extra space below SVG */
+}
+
+/* Animation for the rect/text inside each letter SVG */
+.loader-letter-box svg rect,
+.loader-letter-box svg text {
+  transform-origin: center center; /* Ensure transformations are from the center */
+  animation: letter-loader-animation 1.5s ease-in-out infinite alternate; /* Animate each letter */
+}
+
+/* Specific animation for the custom 'T' shape (if it has fill) */
+.loader-letter-box svg rect[fill] {
+    animation: letter-fill-animation 1.5s ease-in-out infinite alternate;
+}
+
+/* Keyframes for the main letter animation (scale and opacity) */
+@keyframes letter-loader-animation {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(0.5); }
+}
+
+/* Keyframes for the fill animation (just opacity) */
+@keyframes letter-fill-animation {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Optional: Subtle overall pulse for the entire grid */
+.loader-letters-grid {
+  animation: grid-pulse 2s infinite alternate;
+}
+
+@keyframes grid-pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.01); }
+}
