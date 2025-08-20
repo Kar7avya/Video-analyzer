@@ -38,8 +38,8 @@ export default pool;
 
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASEANONKEY
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASEANONKEY
 );
 
 // Get __filename and __dirname for ES module compatibility
@@ -222,7 +222,7 @@ app.post("/upload", videoUpload.single("myvideo"), async (req, res) => {
       }]);
 
       console.log("INSERTING IN META TABLE ELSE ERROR");
-    if (insertError) {
+    if (error) {
       console.error("Error inserting metadata:", insertError.message);
       console.error("Insert error details:", insertError);
       return res.status(500).send("Failed to save metadata");
@@ -358,104 +358,110 @@ app.post("/extractFrames", videoUpload.none(), async (req, res) => {
 
 // FIXED: Complete analyzeAllFrames function
 app.get("/analyzeAllFrames", async (req, res) => {
-    try {
-        const { data: frameList, error: listError } = await supabase
-            .storage
-            .from("projectai")
-            .list("frames", { limit: 100 });
+  try {
+    const { data: frameList, error: listError } = await supabase
+      .storage
+      .from("projectai")
+      .list("frames", { limit: 100 });
 
-        if (listError) {
-            console.error("Supabase list error:", listError);
-            return res.status(500).send("Could not list frames from Supabase.");
-        }
-
-        if (!frameList || frameList.length === 0) {
-            return res.status(404).send("No frames found to analyze.");
-        }
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const analysisResults = []; // FIXED: Better variable name
-
-        for (const item of frameList) {
-            const { data, error: downloadError } = await supabase
-                .storage
-                .from("projectai")
-                .download(`frames/${item.name}`);
-
-            if (downloadError) {
-                console.error(`Download error for ${item.name}:`, downloadError.message);
-                continue;
-            }
-
-            // Read and validate buffer
-            const arrayBuffer = await data.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const base64 = buffer.toString("base64");
-
-            // Validate non-empty image data
-            if (!base64 || base64.length < 100) {
-                console.warn(`Skipped ${item.name} due to empty or invalid image data.`);
-                continue;
-            }
-
-            console.log(`Analyzing: ${item.name}, Base64 length: ${base64.length}`);
-
-            const result = await model.generateContent([
-                { text: "Describe this image" },
-                { inlineData: { mimeType: "image/jpeg", data: base64 } },
-            ]);
-
-            const description = await result.response.text();
-            analysisResults.push({ name: item.name, description });
-
-            // FIXED: Update metadata for each frame
-            try {
-                const { data: allVideos, error: fetchError } = await supabase
-                    .from("metadata")
-                    .select("id, frames");
-
-                if (fetchError) {
-                    console.error("Error fetching videos:", fetchError);
-                    continue;
-                }
-
-                // Find the video that contains this frame
-                const video = allVideos.find(v => 
-                    Array.isArray(v.frames) && 
-                    v.frames.some(f => f.frame_id === item.name)
-                );
-
-                if (!video) {
-                    console.warn('No video found for frame', item.name);
-                    continue;
-                }
-
-                // Update the frame analysis in the frames array
-                const updatedFrames = video.frames.map(f =>
-                    f.frame_id === item.name
-                        ? { ...f, frame_analysis: description }
-                        : f
-                );
-
-                await supabase
-                    .from("metadata")
-                    .update({ frames: updatedFrames })
-                    .eq("id", video.id);
-
-            } catch (updateError) {
-                console.error(`Error updating metadata for frame ${item.name}:`, updateError);
-            }
-        }
-
-        res.json({
-            message: "Analysis complete and metadata updated",
-            analysisResults: analysisResults
-        });
-
-    } catch (err) {
-        console.error("Gemini analysis failed:", err);
-        res.status(500).json({ error: "Gemini analysis failed: " + err.message });
+    if (listError) {
+      console.error("Supabase list error:", listError);
+      return res.status(500).send("Could not list frames from Supabase.");
     }
+
+    if (!frameList || frameList.length === 0) {
+      return res.status(404).send("No frames found to analyze.");
+    }
+
+    const analysisResults = [];
+
+    for (const item of frameList) {
+      const { data, error: downloadError } = await supabase
+        .storage
+        .from("projectai")
+        .download(`frames/${item.name}`);
+
+      if (downloadError) {
+        console.error(`Download error for ${item.name}:`, downloadError.message);
+        continue;
+      }
+
+      const arrayBuffer = await data.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString("base64");
+
+      if (!base64 || base64.length < 100) {
+        console.warn(`Skipped ${item.name} due to empty or invalid image data.`);
+        continue;
+      }
+
+      console.log(`Analyzing: ${item.name}, Base64 length: ${base64.length}`);
+
+      const prompt = `Describe this image in one or two sentences. The image is provided in base64 format:\n\n${base64}`;
+
+      // HuggingFace text generation API (google/gemma-7b-it)
+      const hfResponse = await fetch("https://api-inference.huggingface.co/models/google/gemma-7b-it", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.HF_API_KEY}`
+        },
+        body: JSON.stringify({ inputs: prompt })
+      });
+
+      const hfData = await hfResponse.json();
+      const description = Array.isArray(hfData) && hfData[0]?.generated_text
+        ? hfData[0].generated_text
+        : (hfData.generated_text || "No description");
+
+      analysisResults.push({ name: item.name, description });
+
+      // Update metadata in Supabase
+      try {
+        const { data: allVideos, error: fetchError } = await supabase
+          .from("metadata")
+          .select("id, frames");
+
+        if (fetchError) {
+          console.error("Error fetching videos:", fetchError);
+          continue;
+        }
+
+        const video = allVideos.find(v =>
+          Array.isArray(v.frames) &&
+          v.frames.some(f => f.frame_id === item.name)
+        );
+
+        if (!video) {
+          console.warn("No video found for frame", item.name);
+          continue;
+        }
+
+        const updatedFrames = video.frames.map(f =>
+          f.frame_id === item.name
+            ? { ...f, frame_analysis: description }
+            : f
+        );
+
+        await supabase
+          .from("metadata")
+          .update({ frames: updatedFrames })
+          .eq("id", video.id);
+
+      } catch (updateError) {
+        console.error(`Error updating metadata for frame ${item.name}:`, updateError);
+      }
+    }
+
+    res.json({
+      message: "Analysis complete and metadata updated",
+      analysisResults
+    });
+
+  } catch (err) {
+    console.error("Frame analysis failed:", err);
+    res.status(500).json({ error: "Frame analysis failed: " + err.message });
+  }
 });
 
 // Transcribe video audio with Deepgram
@@ -610,7 +616,7 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
 
     console.log("✅ /transcribeWithDeepgram route HIT!");
     console.log("📦 Request body:", req.body);
-    console.log("🎬 Video name received:", req.body.videoName);
+    console.log("🎬 Video name received:", videoName);
 
     if (!videoName) {
         console.log("❌ No videoName provided");
@@ -619,7 +625,7 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
     
     console.log(`🔍 Looking for metadata for video: ${videoName}`);
 
-    // 🚨 ADD THIS DEBUG CODE - Let's see what's in the database first
+    // Check recent metadata entries
     console.log("📋 Checking what's in the metadata table...");
     const { data: allMetadata, error: allError } = await supabase
         .from("metadata")
@@ -637,7 +643,6 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
             });
         } else {
             console.log("  📭 NO METADATA ENTRIES FOUND IN DATABASE!");
-            console.log("  💡 This means no videos have been uploaded to the metadata table yet.");
         }
     }
 
@@ -645,11 +650,9 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
     console.log(`🔍 Searching for exact match: "${videoName}"`);
     let { data: metadataRows, error: metadataError } = await supabase
         .from("metadata")
-        .select("id, video_name")
+        .select("id")
         .eq("video_name", videoName)
         .limit(1);
-
-    console.log("🔍 Exact match result:", metadataRows);
 
     if (metadataError) {
         console.error("❌ Database query error:", metadataError.message);
@@ -666,7 +669,7 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
         
         const { data: noExtRows, error: noExtError } = await supabase
             .from("metadata")
-            .select("id, video_name")
+            .select("id")
             .eq("video_name", nameWithoutExt)
             .limit(1);
             
@@ -675,12 +678,12 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
             metadataRows = noExtRows;
         } else {
             // Try with just the base name (remove timestamp prefix)
-            const baseName = videoName.split('-').pop(); // Gets "latestfiller.mp4" from "2025-08-14_12-03-33-ta6y6gysvqn-latestfiller.mp4"
+            const baseName = videoName.split('-').pop();
             console.log(`🔍 Trying base name: "${baseName}"`);
             
             const { data: baseRows, error: baseError } = await supabase
                 .from("metadata")
-                .select("id, video_name")
+                .select("id")
                 .eq("video_name", baseName)
                 .limit(1);
                 
@@ -692,7 +695,7 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
                 console.log(`🔍 Trying partial match with LIKE...`);
                 const { data: likeRows, error: likeError } = await supabase
                     .from("metadata")
-                    .select("id, video_name")
+                    .select("id")
                     .like("video_name", `%${baseName.replace('.mp4', '')}%`)
                     .limit(1);
                     
@@ -707,19 +710,6 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
     // Still no match found
     if (!metadataRows || metadataRows.length === 0) {
         console.log("❌ No metadata entry found for this video after all attempts!");
-        console.log("📝 Searched for:");
-        console.log(`  - Exact: "${videoName}"`);
-        console.log(`  - Without ext: "${videoName.replace(/\.[^/.]+$/, "")}"`);
-        console.log(`  - Base name: "${videoName.split('-').pop()}"`);
-        console.log("📋 Available videos in database:");
-        if (allMetadata && allMetadata.length > 0) {
-            allMetadata.forEach(row => {
-                console.log(`  - "${row.video_name}"`);
-            });
-        } else {
-            console.log("  📭 No videos in database at all!");
-        }
-        
         return res.status(404).json({ 
             error: "No metadata entry found for this video",
             searchedFor: videoName,
@@ -727,8 +717,6 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
             suggestion: "Make sure the video was uploaded successfully first"
         });
     }
-
-    console.log(`✅ Found metadata row with ID: ${metadataRows[0].id} for video: "${metadataRows[0].video_name}"`);
 
     const metadataId = metadataRows[0].id;
     const videoPath = path.join(__dirname, "uploads", videoName);
@@ -813,18 +801,30 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
                 console.log("💾 Updating metadata in database...");
 
                 // Update metadata with transcript
-                const { error: updateError } = await supabase
-                    .from("metadata")
-                    .update({
-                        deepgram_transcript: transcript,
-                        deepgram_words: allWords
-                    })
-                    .eq("id", metadataId);
+                
 
-                if (updateError) {
-                    console.error("❌ Error updating metadata:", updateError.message);
-                    return res.status(500).json({ error: "Failed to update metadata" });
-                }
+
+
+
+
+                // Update metadata with transcript
+const { error: updateError } = await supabase
+    .from("metadata")
+    .update({
+        deepgram_transcript: transcript,
+        deepgram_words: allWords
+    })
+    .eq("id", metadataId);
+
+if (updateError) {
+    console.error("❌ Error updating metadata:", updateError.message);
+    console.error("Update data:", {
+        deepgram_transcript: transcript,
+        deepgram_words: allWords,
+        metadataId: metadataId
+    });
+    return res.status(500).json({ error: "Failed to update metadata: " + updateError.message });
+}
 
                 console.log("✅ Metadata updated successfully");
                 console.log("🎉 Sending response to client");
@@ -833,7 +833,7 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
 
             } catch (err) {
                 console.error("❌ Deepgram transcription failed:", err.message);
-                res.status(500).json({ error: "Deepgram failed: " + err.message });
+                return res.status(500).json({ error: "Deepgram failed: " + err.message });
             } finally {
                 console.log("🧹 Cleaning up temporary files...");
                 await fsp.unlink(audioPath).catch(e => console.error("❌ Error deleting audio file", e));
@@ -843,9 +843,11 @@ app.post("/transcribeWithDeepgram", videoUpload.none(), async (req, res) => {
         });
     } catch (err) {
         console.error("❌ Unexpected error:", err.message);
-        res.status(500).json({ error: "Server error: " + err.message });
+        return res.status(500).json({ error: "Server error: " + err.message });
     }
 });
+
+
 // Transcribe video audio with ElevenLabs
 app.post("/transcribeWithElevenLabs", videoUpload.none(), async (req, res) => {
     const { videoName } = req.body;
@@ -926,61 +928,73 @@ app.post("/transcribeWithElevenLabs", videoUpload.none(), async (req, res) => {
 
 // Analyze speech transcript with Gemini
 app.post("/analyzeSpeechWithGemini", async (req, res) => {
-    const { transcript, videoName } = req.body; // FIXED: Get videoName from request
+  const { transcript, videoName } = req.body;
 
-    if (!transcript) {
-        return res.status(400).json({ error: "No transcript provided for analysis." });
+  if (!transcript) {
+    return res.status(400).json({ error: "No transcript provided for analysis." });
+  }
+
+  try {
+    const prompt = `Analyze the following speech transcript for the presence of filler words (like "uh", "um", "like", "you know") and pauses (marked as [PAUSE:X.XXs]).
+
+Based *only* on the textual content, provide insights on:
+1.  **Frequency of Filler Words:** Count and list the specific filler words used and their occurrences.
+2.  **Frequency of Pauses:** Count the number of pauses and note their average duration.
+3.  **Overall Fluency:** Comment on how the use of these filler words and pauses might affect the perceived fluency of the speech.
+4.  **Perceived Confidence (from text):** Based on word choice, sentence structure, and the presence/absence of filler words/pauses, assess the *perceived* confidence of the speaker. Provide a rating (e.g., Low, Medium, High) and justification.
+5.  **Perceived Clarity (from text):** Based on vocabulary, sentence complexity, and the presence/absence of disfluencies, assess the *perceived* clarity of the speech. Provide a rating (e.g., Low, Medium, High) and justification.
+6.  **Inferred Tone Modulation (from text):** While direct audio tone is not available, comment on any *inferred* tone modulation based on punctuation, word emphasis (if implied by context), or changes in sentence structure. For example, does the text suggest questions, exclamations, or a generally flat delivery? Provide a rating (e.g., Flat, Moderate, Expressive) and justification.
+7.  **Suggestions for Improvement:** Offer actionable advice on how to reduce filler words, improve pacing, enhance perceived confidence, and increase clarity.
+
+Transcript:
+"${transcript}"`;
+
+    // 👉 Use HuggingFace text generation endpoint
+    const hfResponse = await fetch(
+      "https://api-inference.huggingface.co/models/google/gemma-7b-it",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.HF_API_KEY}`
+        },
+        body: JSON.stringify({ inputs: prompt })
+      }
+    );
+
+    const hfData = await hfResponse.json();
+    const analysis =
+      Array.isArray(hfData) && hfData[0]?.generated_text
+        ? hfData[0].generated_text
+        : (hfData.generated_text || "No analysis");
+
+    // Update metadata with analysis (if videoName provided)
+    if (videoName) {
+      const { data: rows, error: fetchError } = await supabase
+        .from("metadata")
+        .select("id")
+        .eq("video_name", videoName)
+        .limit(1);
+
+      if (!fetchError && rows && rows.length > 0) {
+        const { error: updateError } = await supabase
+          .from("metadata")
+          .update({ gemini_speech_analysis: analysis })
+          .eq("id", rows[0].id);
+
+        if (updateError) {
+          console.error("Error updating speech analysis:", updateError);
+        }
+      }
     }
 
-    try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const prompt = `Analyze the following speech transcript for the presence of filler words (like "uh", "um", "like", "you know") and pauses (marked as [PAUSE:X.XXs]).
-        
-        Based *only* on the textual content, provide insights on:
-        1.  **Frequency of Filler Words:** Count and list the specific filler words used and their occurrences.
-        2.  **Frequency of Pauses:** Count the number of pauses and note their average duration.
-        3.  **Overall Fluency:** Comment on how the use of these filler words and pauses might affect the perceived fluency of the speech.
-        4.  **Perceived Confidence (from text):** Based on word choice, sentence structure, and the presence/absence of filler words/pauses, assess the *perceived* confidence of the speaker. Provide a rating (e.g., Low, Medium, High) and justification.
-        5.  **Perceived Clarity (from text):** Based on vocabulary, sentence complexity, and the presence/absence of disfluencies, assess the *perceived* clarity of the speech. Provide a rating (e.g., Low, Medium, High) and justification.
-        6.  **Inferred Tone Modulation (from text):** While direct audio tone is not available, comment on any *inferred* tone modulation based on punctuation, word emphasis (if implied by context), or changes in sentence structure. For example, does the text suggest questions, exclamations, or a generally flat delivery? Provide a rating (e.g., Flat, Moderate, Expressive) and justification.
-        7.  **Suggestions for Improvement:** Offer actionable advice on how to reduce filler words, improve pacing, enhance perceived confidence, and increase clarity.
-
-        Transcript:
-        "${transcript}"`;
-
-        const result = await model.generateContent(prompt);
-        const analysis = await result.response.text();
-
-        // FIXED: Update metadata if videoName is provided
-        if (videoName) {
-            const { data: rows, error: fetchError } = await supabase
-                .from("metadata")
-                .select("id")
-                .eq("video_name", videoName)
-                .limit(1);
-
-            if (!fetchError && rows && rows.length > 0) {
-                const { error: updateError } = await supabase
-                    .from("metadata")
-                    .update({ gemini_speech_analysis: analysis })
-                    .eq("id", rows[0].id);
-
-                if (updateError) {
-                    console.error("Error updating speech analysis:", updateError);
-                }
-            }
-        }
-
-        res.json({ analysis });
-    } catch (err) {
-        console.error("Gemini speech analysis failed:", err.message);
-        if (err.message.includes("API key expired") || err.message.includes("API_KEY_INVALID")) {
-            res.status(500).json({ error: "Gemini speech analysis failed: API key expired. Please renew your GEMINI_API_KEY." });
-        } else {
-            res.status(500).json({ error: "Gemini speech analysis failed: " + err.message });
-        }
-    }
+    res.json({ analysis });
+  } catch (err) {
+    console.error("Speech analysis failed:", err.message);
+    res.status(500).json({ error: "Speech analysis failed: " + err.message });
+  }
 });
+
 
 // FIXED: Complete metadata endpoint
 app.get('/api/metadata', async (req, res) => {
