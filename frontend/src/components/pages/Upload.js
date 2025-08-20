@@ -1,9 +1,8 @@
-import React, { useState, useRef ,useEffect} from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaCloudUploadAlt } from "react-icons/fa"; // Import the cloud upload icon
-
-import supabase from"./supabaseClient";
+import supabase from "./supabaseClient";
 
 export default function Upload() {
   const [file, setFile] = useState(null);
@@ -23,7 +22,6 @@ export default function Upload() {
       handleUpload({ preventDefault: () => {} }); // dummy event
     }
   }, [file]);
-
 
   // Function to handle file selection (from drag/drop or click)
   const handleFileSelect = (selectedFile) => {
@@ -49,8 +47,6 @@ export default function Upload() {
     }
 
     setFile(selectedFile);
-    // Automatically trigger upload once file is selected and validated
-    // handleUpload({ preventDefault: () => {} }); // Pass a dummy event object
   };
 
   // Drag & Drop Handlers
@@ -80,281 +76,173 @@ export default function Upload() {
     }
   };
 
-//   const handleUpload = async (e) => {
-//     e.preventDefault(); // Keep this for form submission, but the auto-trigger passes a dummy
-//     if (!file) {
-//       toast.error("❗ Please select a video or audio file!");
-//       return;
-//     }
+  const handleUpload = async (e) => {
+    e.preventDefault(); // Keep this for form submission, but the auto-trigger passes a dummy
 
-
-
-    
-//     setLoading(true);
-//     // Clear previous results
-//     setResponses([]);
-//     setElevenLabsTranscript("");
-//     setDeepgramTranscript("");
-//     setLlmAnalysisResult("");
-
-//     try {
-//     //1️⃣ Upload file to local server
-//       toast.info("⬆️ Uploading file to local server...");
-//       const formData = new FormData();
-//       formData.append("myvideo", file);
-
-//       const uploadRes = await fetch("http://localhost:8000/upload", {
-//         method: "POST",
-//         body: formData,
-//       });
-
-//       if (!uploadRes.ok) {
-//         const errorText = await uploadRes.text();
-//         throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
-//       }
-
-//       const uploadData = await uploadRes.json();
-
-//       console.log("UploadData",uploadData);
-//       const uploadedFilename = uploadData.videoName;
-//       setFilename(uploadedFilename);
-//       toast.success("✅ File uploaded to local server successfully!");
-
-//       // 2️⃣ Upload the same file to Supabase
-//       // toast.info("☁️ Uploading file to Supabase...");
-//       // const { data: supabaseData, error: supabaseError } = await supabase.storage
-//       //   .from("projectai")
-//       //   .upload(`videos/${Date.now()}-${file.name}`, file);
-
-//       // if (supabaseError) {
-//       //   console.error("Supabase Upload failed:", supabaseError.message);
-//       //   toast.error("❌ Supabase upload failed: " + supabaseError.message);
-//       // } else {
-//       //   toast.success("✅ File uploaded to Supabase successfully!");
-//       //   console.log("File uploaded to Supabase:", supabaseData.path);
-//       // }
-
-//       // setFilename(supabaseData.path);
-      
-//       // console.log("SUPABASEDATA",supabaseData);
-//       // console.log("SUPABASEDATEPATH",supabaseData.path);
-// //       toast.info("☁️ Uploading file to Supabase...");
-
-// // // ADD THIS: Generate unique filename
-
-
-// // const now = new Date();
-// // const timestamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}`;
-// // const randomId = Math.random().toString(36).substring(2, 15);
-// // const uniqueFilename = `videos/${timestamp}-${randomId}-${file.name}`;
-
-// // // REPLACE the upload line with this:
-// // const { data: supabaseData, error: supabaseError } = await supabase.storage
-// //   .from("projectai")
-// //   .upload(uniqueFilename, file, {
-// //     cacheControl: '0',
-// //     upsert: false
-// //   });
-
-// //   let uploadedFilename;
-// // // Keep the rest exactly the same:
-// // if (supabaseError) {
-// //   console.error("Supabase Upload failed:", supabaseError.message);
-// //   toast.error("❌ Supabase upload failed: " + supabaseError.message);
-// //   return;
-
-// // } else {
-// //   toast.success("✅ File uploaded to Supabase successfully!");
-// //   console.log("File uploaded to Supabase:", supabaseData.path);
-
-// //   uploadedFilename = supabaseData.path.split('/').pop(); // Extract filename from path
-// //   setFilename(uploadedFilename);
-// //   // setFilename(supabaseData.path); // Set the filename state
-// //   console.log("UPLOADED FILENAME", uploadedFilename);
-// // }
-
-
-// // // setFilename(supabaseData.path);
-
-// // console.log("SUPABASEDATA", supabaseData);
-// // console.log("SUPABASEDATEPATH", supabaseData.path);
-
-
-const handleUpload = async (e) => {
-  e.preventDefault(); // Keep this for form submission, but the auto-trigger passes a dummy
-  
-  if (!file) {
-    toast.error("❗ Please select a video or audio file!");
-    return;
-  }
-
-  setLoading(true);
-  // Clear previous results
-  setResponses([]);
-  setElevenLabsTranscript("");
-  setDeepgramTranscript("");
-  setLlmAnalysisResult("");
-  setPublicUrl("");
-
-  try {
-    // 1️⃣ Upload file to backend (which uploads to Supabase and creates metadata)
-    toast.info("⬆️ Uploading file to Supabase...");
-    const formData = new FormData();
-    formData.append("myvideo", file);
-
-    const uploadRes = await fetch("http://localhost:8000/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!uploadRes.ok) {
-      const errorText = await uploadRes.text();
-      throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
+    if (!file) {
+      toast.error("❗ Please select a video or audio file!");
+      return;
     }
 
-    const uploadData = await uploadRes.json();
-    
-    console.log("UploadData", uploadData);
-    const uploadedFilename = uploadData.videoName;
-    const uploadPublicUrl = uploadData.publicUrl;
-    
-    if (!uploadedFilename) {
-      throw new Error("No filename received from server");
-    }
-    
-    setFilename(uploadedFilename);
-    setPublicUrl(uploadPublicUrl);
-    toast.success("✅ File uploaded to Supabase and metadata saved successfully!");
-    
-    console.log("📁 Uploaded filename:", uploadedFilename);
-    console.log("🔗 Public URL:", uploadPublicUrl);
+    setLoading(true);
+    // Clear previous results
+    setResponses([]);
+    setElevenLabsTranscript("");
+    setDeepgramTranscript("");
+    setLlmAnalysisResult("");
+    setPublicUrl("");
 
-    // 2️⃣ Extract frames (only for video, backend should handle audio gracefully)
-    toast.info("🖼️ Extracting frames (if video)...");
-    const extractForm = new FormData();
-    
-    extractForm.append("videoName", uploadedFilename);
-    console.log("UPLOADED FILENAME", uploadedFilename);
+    try {
+      // 1️⃣ Upload file to backend (which uploads to Supabase and creates metadata)
+      toast.info("⬆️ Uploading file to Supabase...");
+      const formData = new FormData();
+      formData.append("myvideo", file);
 
-    console.log("EXTRACT FROM", extractForm);
-    const extractRes = await fetch("http://localhost:8000/extractFrames", {
-      method: "POST",
-      body: extractForm,
-    });
+      const uploadRes = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!extractRes.ok) {
-      const errorText = await extractRes.text();
-      console.warn(`Frame extraction might have failed or not applicable: ${errorText}`);
-      toast.warn("🖼️ Frame extraction skipped or failed (might be an audio file).");
-    } else {
-      toast.success("✅ Frames extracted (if video)!");
-    }
-
-    // 3️⃣ Analyze frames using Gemini (only for video)
-    toast.info("🤖 Analyzing frames with Gemini (if video)...");
-    const analyzeRes = await fetch("http://localhost:8000/analyzeAllFrames");
-    
-    if (!analyzeRes.ok) {
-      const errText = await analyzeRes.text();
-      console.warn(`Frame analysis might have failed or not applicable: ${errText}`);
-      toast.warn("🤖 Frame analysis skipped or failed (might be an audio file).");
-    } else {
-      const analyzeData = await analyzeRes.json();
-      const frames = Array.isArray(analyzeData)
-        ? analyzeData
-        : analyzeData.responses || [];
-      setResponses(frames.map((item) => `${item.file}: ${item.description}`));
-      toast.success("✅ Frame analysis complete (if video)!");
-    }
-
-    // 4️⃣ Transcribe with ElevenLabs
-    toast.info("🗣️ Transcribing with ElevenLabs...");
-    const elevenForm = new FormData();
-    elevenForm.append("videoName", uploadedFilename);
-
-    const elevenRes = await fetch("http://localhost:8000/transcribeWithElevenLabs", {
-      method: "POST",
-      body: elevenForm,
-    });
-
-    if (!elevenRes.ok) {
-      const errText = await elevenRes.text();
-      throw new Error(`ElevenLabs transcription failed: ${errText}`);
-    }
-
-    const elevenData = await elevenRes.json();
-    const elevenTranscript =
-      typeof elevenData.transcript === "string"
-        ? elevenData.transcript
-        : JSON.stringify(elevenData.transcript, null, 2);
-
-    setElevenLabsTranscript(elevenTranscript);
-    toast.success("✅ ElevenLabs transcription done!");
-
-    // 5️⃣ Transcribe with Deepgram
-    toast.info("🧠 Transcribing with Deepgram...");
-    const deepgramForm = new FormData();
-    deepgramForm.append("videoName", uploadedFilename);
-
-    const deepgramRes = await fetch("http://localhost:8000/transcribeWithDeepgram", {
-      method: "POST",
-      body: deepgramForm,
-    });
-
-    if (!deepgramRes.ok) {
-      const errText = await deepgramRes.text();
-      throw new Error(`Deepgram transcription failed: ${errText}`);
-    }
-
-    const deepgramData = await deepgramRes.json();
-    const deepgramTranscript = deepgramData.transcript || "No transcript from Deepgram";
-    setDeepgramTranscript(deepgramTranscript);
-    toast.success("✅ Deepgram transcription done!");
-
-    // 6️⃣ Call LLM for Speech Analysis using the Deepgram transcript
-    if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
-      toast.info("✨ Analyzing speech with Gemini...");
-      try {
-        const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ transcript: deepgramTranscript, videoName: uploadedFilename }),
-        });
-
-        if (!analysisRes.ok) {
-          let errorMessage = analysisRes.statusText;
-          try {
-            const errorData = await analysisRes.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            console.warn("Could not parse error response as JSON");
-          }
-          throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
-        }
-
-        const analysisData = await analysisRes.json();
-        setLlmAnalysisResult(analysisData.analysis);
-        toast.success("✅ Speech analysis by Gemini complete!");
-        console.log("Speech Analysis by Gemini:", analysisData.analysis);
-
-      } catch (analysisErr) {
-        console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
-        toast.error("❌ Speech analysis failed. Check console for details.");
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
       }
-    } else {
-      console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
-      toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
-    }
 
-  } catch (err) {
-    console.error("Upload/Processing Error:", err.message || err);
-    toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
-  } finally {
-    setLoading(false);
-  }
-};
+      const uploadData = await uploadRes.json();
+      const uploadedFilename = uploadData.videoName;
+      const uploadPublicUrl = uploadData.publicUrl;
+
+      if (!uploadedFilename) {
+        throw new Error("No filename received from server");
+      }
+
+      setFilename(uploadedFilename);
+      setPublicUrl(uploadPublicUrl);
+      toast.success("✅ File uploaded to Supabase and metadata saved successfully!");
+
+      // 2️⃣ Extract frames (only for video, backend should handle audio gracefully)
+      toast.info("🖼️ Extracting frames (if video)...");
+      const extractForm = new FormData();
+      extractForm.append("videoName", uploadedFilename);
+
+      const extractRes = await fetch("http://localhost:8000/extractFrames", {
+        method: "POST",
+        body: extractForm,
+      });
+
+      if (!extractRes.ok) {
+        const errorText = await extractRes.text();
+        console.warn(`Frame extraction might have failed or not applicable: ${errorText}`);
+        toast.warn("🖼️ Frame extraction skipped or failed (might be an audio file).");
+      } else {
+        toast.success("✅ Frames extracted (if video)!");
+      }
+
+      // 3️⃣ Analyze frames using Gemini (only for video)
+      toast.info("🤖 Analyzing frames with Gemini (if video)...");
+      const analyzeRes = await fetch("http://localhost:8000/analyzeAllFrames");
+
+      if (!analyzeRes.ok) {
+        const errText = await analyzeRes.text();
+        console.warn(`Frame analysis might have failed or not applicable: ${errText}`);
+        toast.warn("🤖 Frame analysis skipped or failed (might be an audio file).");
+      } else {
+        const analyzeData = await analyzeRes.json();
+        const frames = Array.isArray(analyzeData)
+          ? analyzeData
+          : analyzeData.responses || [];
+        setResponses(frames.map((item) => `${item.file}: ${item.description}`));
+        toast.success("✅ Frame analysis complete (if video)!");
+      }
+
+      // 4️⃣ Transcribe with ElevenLabs
+      toast.info("🗣️ Transcribing with ElevenLabs...");
+      const elevenForm = new FormData();
+      elevenForm.append("videoName", uploadedFilename);
+
+      const elevenRes = await fetch("http://localhost:8000/transcribeWithElevenLabs", {
+        method: "POST",
+        body: elevenForm,
+      });
+
+      if (!elevenRes.ok) {
+        const errText = await elevenRes.text();
+        throw new Error(`ElevenLabs transcription failed: ${errText}`);
+      }
+
+      const elevenData = await elevenRes.json();
+      const elevenTranscript =
+        typeof elevenData.transcript === "string"
+          ? elevenData.transcript
+          : JSON.stringify(elevenData.transcript, null, 2);
+
+      setElevenLabsTranscript(elevenTranscript);
+      toast.success("✅ ElevenLabs transcription done!");
+
+      // 5️⃣ Transcribe with Deepgram
+      toast.info("🧠 Transcribing with Deepgram...");
+      const deepgramForm = new FormData();
+      deepgramForm.append("videoName", uploadedFilename);
+
+      const deepgramRes = await fetch("http://localhost:8000/transcribeWithDeepgram", {
+        method: "POST",
+        body: deepgramForm,
+      });
+
+      if (!deepgramRes.ok) {
+        const errText = await deepgramRes.text();
+        throw new Error(`Deepgram transcription failed: ${errText}`);
+      }
+
+      const deepgramData = await deepgramRes.json();
+      const deepgramTranscript = deepgramData.transcript || "No transcript from Deepgram";
+      setDeepgramTranscript(deepgramTranscript);
+      toast.success("✅ Deepgram transcription done!");
+
+      // 6️⃣ Call LLM for Speech Analysis using the Deepgram transcript
+      if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
+        toast.info("✨ Analyzing speech with Gemini...");
+        try {
+          const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ transcript: deepgramTranscript, videoName: uploadedFilename }),
+          });
+
+          if (!analysisRes.ok) {
+            let errorMessage = analysisRes.statusText;
+            try {
+              const errorData = await analysisRes.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch (parseError) {
+              console.warn("Could not parse error response as JSON");
+            }
+            throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
+          }
+
+          const analysisData = await analysisRes.json();
+          setLlmAnalysisResult(analysisData.analysis);
+          toast.success("✅ Speech analysis by Gemini complete!");
+          console.log("Speech Analysis by Gemini:", analysisData.analysis);
+
+        } catch (analysisErr) {
+          console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
+          toast.error("❌ Speech analysis failed. Check console for details.");
+        }
+      } else {
+        console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
+        toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
+      }
+
+    } catch (err) {
+      console.error("Upload/Processing Error:", err.message || err);
+      toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // State for manual transcript
   const [manualTranscript, setManualTranscript] = useState("");
@@ -432,7 +320,6 @@ const handleUpload = async (e) => {
       </section>
     );
   }
-
 
   return (
     <section className="py-8 bg-white min-h-screen" id="upload">
@@ -543,6 +430,8 @@ const handleUpload = async (e) => {
               </div>
             )}
 
+            
+
             {elevenLabsTranscript && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
                 <h3 className="text-3xl font-bold mb-6 text-gray-800">🗣️ ElevenLabs Transcript</h3>
@@ -573,41 +462,6 @@ const handleUpload = async (e) => {
           </div>
         </div>
       </div>
-
-
-{/* <div>
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="script">Enter your script:</label><br />
-        <textarea
-          id="script"
-          value={script}
-          onChange={(e) => setScript(e.target.value)}
-          rows="5"
-          cols="50"
-          placeholder="Type your script here..."
-        ></textarea><br />
-        <button type="submit">Generate Audio</button>
-      </form>
-
-      {audioUrl && (
-        <div>
-          <h3>Generated Audio:</h3>
-          <audio controls src={audioUrl}></audio><br />
-          <a href={audioUrl} download>Download Audio</a>
-        </div>
-      )}
-    </div> */}
-
-
-
-
-
-
-
-
-
-
-
 
       <ToastContainer position="top-center" autoClose={3000} theme="colored" />
     </section>
