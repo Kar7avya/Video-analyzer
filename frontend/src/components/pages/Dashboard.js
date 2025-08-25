@@ -8,12 +8,36 @@ function Dashboard() {
   useEffect(() => {
     console.log('📌 Dashboard component mounted — starting data fetch...');
 
-    fetch('/api/metadata')
-      .then(response => {
+
+fetch('http://localhost:8000/api/metadata', {
+  headers: {
+    Accept: 'application/json',
+  },
+})
+
+
+    // fetch('/api/metadata', {
+    //   headers: {
+    //     Accept: 'application/json',
+    //   },
+    // })
+      .then((response) => {
         console.log('📥 API response received:', response);
+
+        // If the response is not OK (2xx) throw an error
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        // Make sure it's actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Response is not JSON');
+        }
+
         return response.json();
       })
-      .then(data => {
+      .then((data) => {
         console.log('📄 Parsed JSON data:', data);
         if (data.success) {
           setMetadataList(data.data);
@@ -24,9 +48,9 @@ function Dashboard() {
         }
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('🚨 Fetch error:', err);
-        setError('Error fetching data');
+        setError(err.message || 'Error fetching data');
         setLoading(false);
       });
   }, []);
