@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaCloudUploadAlt } from "react-icons/fa"; // Import the cloud upload icon
-import supabase from "./supabaseClient";
+import styled from 'styled-components';
+import mic from "../pages/mic.png";
 
 export default function Upload() {
   const [file, setFile] = useState(null);
@@ -291,24 +292,43 @@ export default function Upload() {
   };
 
   // Show loading/processing state
-  if (loading) {
-    return (
+ if (loading) {
+  return (
+    <StyledWrapper>
       <section className="py-5 bg-white min-h-screen flex items-center justify-center" id="upload">
         <div className="container mx-auto">
           <div className="flex justify-center">
             <div className="w-full lg:w-3/4">
               <div className="card shadow-lg rounded-xl overflow-hidden">
                 <div className="card-body text-center p-8">
-                  <div className="spinner-border text-indigo-600 mb-4 animate-spin" role="status" style={{ width: '3rem', height: '3rem' }}>
-                    <span className="sr-only">Loading...</span>
+                  
+                  {/* 🔹 Replace spinner with your StyledWrapper loader */}
+                  <div className="loader mb-6">
+                    <span className="letter l">A</span>
+                    <span className="letter o">N</span>
+                    <span className="letter a">A</span>
+                    <span className="letter d">L</span>
+                    <span className="letter d">Y</span>
+                    <span className="letter d">S</span>
+                    
+                    
+                    <img src={mic} alt="Mic" style={{ width: "55px", height: "50px" }} />
+
+                    <span className="letter n">N</span>
+                    <span className="letter g">G</span>
                   </div>
-                  <h5 className="text-2xl font-semibold mb-4 text-gray-800">Processing Your Presentation...</h5>
+
+                  <h5 className="text-2xl font-semibold mb-4 text-gray-800">
+                    Processing Your Presentation...
+                  </h5>
+
                   <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
                     <div
                       className="bg-indigo-600 h-2.5 rounded-full animate-pulse"
-                      style={{ width: '75%' }} // Simulating progress
+                      style={{ width: '75%' }}
                     ></div>
                   </div>
+
                   <p className="text-muted text-gray-600 mb-0">
                     Analyzing your video/audio, extracting frames, transcribing, and generating insights...
                   </p>
@@ -318,8 +338,9 @@ export default function Upload() {
           </div>
         </div>
       </section>
-    );
-  }
+    </StyledWrapper>
+  );
+}
 
   return (
     <section className="py-8 bg-white min-h-screen" id="upload">
@@ -430,8 +451,6 @@ export default function Upload() {
               </div>
             )}
 
-            
-
             {elevenLabsTranscript && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
                 <h3 className="text-3xl font-bold mb-6 text-gray-800">🗣️ ElevenLabs Transcript</h3>
@@ -442,7 +461,7 @@ export default function Upload() {
             )}
 
             {deepgramTranscript && (
-              <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
+                           <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
                 <h3 className="text-3xl font-bold mb-6 text-gray-800">🧠 Deepgram Transcript (with filler words & pauses)</h3>
                 <div className="bg-gray-50 p-6 rounded-md overflow-auto max-h-96 border border-gray-200">
                   <pre className="whitespace-pre-wrap font-mono text-base text-gray-700 leading-relaxed">{deepgramTranscript}</pre>
@@ -462,8 +481,53 @@ export default function Upload() {
           </div>
         </div>
       </div>
-
       <ToastContainer position="top-center" autoClose={3000} theme="colored" />
     </section>
   );
 }
+
+const StyledWrapper = styled.div`
+  .loader {
+    --ANIMATION-DELAY-MULTIPLIER: 70ms;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem; /* ✅ space between letters */
+    overflow: hidden;
+  }
+
+  .loader span {
+    display: inline-block; /* ✅ allows transforms per letter */
+    transform: translateY(4rem);
+    animation: hideAndSeek 1s alternate infinite cubic-bezier(0.86, 0, 0.07, 1);
+  }
+
+  /* delay each letter */
+  .loader .l   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 0); }
+  .loader .o   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 1); }
+  .loader .a   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 2); }
+  .loader .d   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 3); }
+  .loader .i   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 4); }
+  .loader .n   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 5); }
+  .loader .g   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 6); }
+
+  .letter {
+    width: fit-content;
+    height: 4rem;
+    font-size: 3rem;
+    font-weight: 900;
+    color: #16b499ff; /* ✅ visible solid color */
+  }
+
+  .loader .i {
+    margin-inline: 5px; /* ✅ small spacing tweak for "I" */
+  }
+
+  @keyframes hideAndSeek {
+    0%   { transform: translateY(4rem); opacity: 0.3; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+`;
+
+
