@@ -1,4 +1,3 @@
-
 // Import necessary modules
 import fs from "fs"; // for sync methods like existsSync and mkdirSync
 import { promises as fsp } from "fs"; // for async methods like readFile, writeFile
@@ -14,27 +13,18 @@ import { createClient as createDeepgramClient } from "@deepgram/sdk";
 import { config } from 'dotenv';
 import { Blob } from "buffer";
 import { createClient } from "@supabase/supabase-js";
-import pkg, { defaults } from 'pg'; // Import the entire pg package
-const { Pool } = pkg; // Extract Pool from the package
-
+// import pkg, { defaults } from 'pg'; // Import the entire pg package
+// const { Pool } = pkg; // Extract Pool from the package
+import pgp from 'pg-promise'; // Use pg-promise for better connection handling
 config();
 
-// Initialize database pool - FIXED: Proper Pool initialization
-// const pool = new Pool({
-//   connectionString: process.env.DATABASE_URL,
-//   // or individual connection parameters:
-//   // user: process.env.DB_USER,
-//   // host: process.env.DB_HOST,
-//   // database: process.env.DB_NAME,
-//   // password: process.env.DB_PASSWORD,
-//   // port: process.env.DB_PORT,
-// });
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Supabase needs SSL
-});
 
-export default pool;
+const pg = pgp({});
+const db = pg(process.env.DATABASE_URL);
+// A more secure and robust Pool initialization for production
+
+
+
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -90,77 +80,6 @@ const deepgram = createDeepgramClient(process.env.DEEPGRAM_API_KEY);
 
 console.log("✅ API keys loaded successfully");
 
-////////////////////////////////////////////////////////////////////////////////////////
-// ROUTES
-////////////////////////////////////////////////////////////////////////////////////////
-
-// Upload a video, then upload it to Supabase
-// app.post("/upload", videoUpload.single("myvideo"), async (req, res) => {
-//   try {
-//     const file = req.file;
-//     if (!file) {
-//       return res.status(400).send("No file uploaded");
-//     }
-//     console.log("File received for upload");
-
-//     const fileBuffer = await fsp.readFile(file.path);
-//     console.log("File buffer created");
-
-//     const { error } = await supabase.storage
-//       .from("projectai")
-//       .upload(`videos/${file.originalname}`, fileBuffer, {
-//         contentType: file.mimetype,
-//         upsert: true,
-//       });
-
-//     if (error) {
-//       console.error("Supabase upload error:", error);
-//       return res.status(500).send("Upload to Supabase failed");
-//     }
-
-//     // Get public URL for the uploaded file
-//     const { data: publicUrlData } = supabase
-//       .storage
-//       .from("projectai")
-//       .getPublicUrl(`videos/${file.originalname}`);
-
-//     const publicUrl = publicUrlData.publicUrl;
-
-//     // Insert metadata into database
-//     const { data: insertData, error: insertError } = await supabase
-//       .from("metadata")
-//       .insert([{
-//         user_id: 1, // For now hardcoded
-//         video_name: file.originalname,
-//         video_url: publicUrl,
-//         video_path: `videos/${file.originalname}`,
-//         frames: [],
-//         elevanlabs_transcript: null,
-//         deepgram_transcript: null
-//       }]);
-
-//     if (insertError) {
-//       console.error("Error inserting metadata:", insertError.message);
-//       return res.status(500).send("Failed to save metadata");
-//     }
-
-//     console.log("✅ Metadata saved:", insertData);
-
-//     // Delete local file after upload
-//     await fsp.unlink(file.path);
-
-//     // FIXED: Single response only
-//     res.status(200).json({ 
-//       message: "Upload successful!", 
-//       videoName: file.originalname,
-//       publicUrl: publicUrl 
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send("Server error");
-//   }
-// });
 app.post("/upload", videoUpload.single("myvideo"), async (req, res) => {
   try {
     const file = req.file;
@@ -949,7 +868,7 @@ Based *only* on the textual content, provide insights on:
 Transcript:
 "${transcript}"`;
 
-    // 👉 Use HuggingFace text generation endpoint
+    // Use HuggingFace text generation endpoint
     const hfResponse = await fetch(
       "https://api-inference.huggingface.co/models/google/gemma-7b-it",
       {
@@ -962,11 +881,15 @@ Transcript:
       }
     );
 
+    if (!hfResponse.ok) {
+      throw new Error(`HuggingFace API error: ${hfResponse.status} ${hfResponse.statusText}`);
+    }
+
     const hfData = await hfResponse.json();
     const analysis =
       Array.isArray(hfData) && hfData[0]?.generated_text
         ? hfData[0].generated_text
-        : (hfData.generated_text || "No analysis");
+        : (hfData.generated_text || "No analysis available from the AI model.");
 
     // Update metadata with analysis (if videoName provided)
     if (videoName) {
@@ -988,24 +911,38 @@ Transcript:
       }
     }
 
+    // ✅ FIX: Actually send the analysis back to the frontend
     res.json({ analysis });
-  } catch (err) {
-    console.error("Speech analysis failed:", err.message);
-    res.status(500).json({ error: "Speech analysis failed: " + err.message });
+
+  } catch (error) {
+    console.error("Error in analyzeSpeechWithGemini:", error);
+    res.status(500).json({ 
+      error: "Failed to analyze speech", 
+      details: error.message 
+    });
   }
 });
 
 
 // FIXED: Complete metadata endpoint
+// This is the new, non-pooled metadata endpoint
 app.get('/api/metadata', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM metadata ORDER BY created_at DESC'); // FIXED: column name and syntax
-        res.json({ success: true, data: result.rows });
+        // Use the pre-initialized 'db' object for the query
+        const data = await db.any('SELECT * FROM metadata ORDER BY created_at DESC');
+
+        if (data.length > 0) {
+            res.json({ success: true, data: data });
+        } else {
+            res.json({ success: true, data: [] });
+        }
     } catch (error) {
         console.error('Error fetching metadata:', error);
-        res.status(500).json({ success: false, error: error.message }); // FIXED: Proper error message
+        res.status(500).json({ success: false, error: error.message });
     }
+    // No need to close the connection here.
 });
+
 
 // Start the server
 app.listen(port, () => {
