@@ -260,3 +260,34 @@ audio {
 .btn:disabled {
   animation: pulse 2s infinite;
 }
+
+/* Navigation styles */
+.navbar-brand {
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.nav-link.btn.btn-link {
+  border: none;
+  padding: 0.5rem 1rem;
+  margin: 0 0.25rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.nav-link.btn.btn-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.nav-link.btn.btn-link.active {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Container adjustments for navigation */
+.voice-cloning-container,
+.karaoke-container {
+  padding-top: 0;
+}

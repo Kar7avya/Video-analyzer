@@ -158,11 +158,6 @@ function VoiceCloning() {
 
   return (
     <div className="voice-cloning-container">
-      <header className="bg-primary text-white text-center py-4 mb-4">
-        <h1 className="display-4">🎤 Voice Cloning Studio</h1>
-        <p className="lead">Clone voices and generate speech with ElevenLabs AI</p>
-      </header>
-
       <div className="container">
         {/* Navigation Tabs */}
         <ul className="nav nav-tabs mb-4" role="tablist">
