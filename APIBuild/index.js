@@ -1,3 +1,4 @@
+
 // Import necessary modules
 import fs from "fs"; // for sync methods like existsSync and mkdirSync
 import { promises as fsp } from "fs"; // for async methods like readFile, writeFile
@@ -25,10 +26,12 @@ const db = pg(process.env.DATABASE_URL);
 
 
 
-
+console.log("React_app_supabase_url:", process.env.REACT_APP_SUPABASE_URL);
+console.log("React_app_supabase_anon_key:", process.env.REACT_APP_SUPABASEANONKEY );
 // Initialize Supabase client
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
+  
   process.env.REACT_APP_SUPABASEANONKEY
 );
 
@@ -846,101 +849,118 @@ app.post("/transcribeWithElevenLabs", videoUpload.none(), async (req, res) => {
 });
 
 // Analyze speech transcript with Gemini
-app.post("/analyzeSpeechWithGemini", async (req, res) => {
-  const { transcript, videoName } = req.body;
+// app.post("/analyzeSpeechWithGemini", async (req, res) => {
+//   const { transcript, videoName } = req.body;
 
-  if (!transcript) {
-    return res.status(400).json({ error: "No transcript provided for analysis." });
-  }
+//   if (!transcript) {
+//     return res.status(400).json({ error: "No transcript provided for analysis." });
+//   }
 
-  try {
-    const prompt = `Analyze the following speech transcript for the presence of filler words (like "uh", "um", "like", "you know") and pauses (marked as [PAUSE:X.XXs]).
+//   try {
+//     const prompt = `Analyze the following speech transcript for the presence of filler words (like "uh", "um", "like", "you know") and pauses (marked as [PAUSE:X.XXs]).
 
-Based *only* on the textual content, provide insights on:
-1.  **Frequency of Filler Words:** Count and list the specific filler words used and their occurrences.
-2.  **Frequency of Pauses:** Count the number of pauses and note their average duration.
-3.  **Overall Fluency:** Comment on how the use of these filler words and pauses might affect the perceived fluency of the speech.
-4.  **Perceived Confidence (from text):** Based on word choice, sentence structure, and the presence/absence of filler words/pauses, assess the *perceived* confidence of the speaker. Provide a rating (e.g., Low, Medium, High) and justification.
-5.  **Perceived Clarity (from text):** Based on vocabulary, sentence complexity, and the presence/absence of disfluencies, assess the *perceived* clarity of the speech. Provide a rating (e.g., Low, Medium, High) and justification.
-6.  **Inferred Tone Modulation (from text):** While direct audio tone is not available, comment on any *inferred* tone modulation based on punctuation, word emphasis (if implied by context), or changes in sentence structure. For example, does the text suggest questions, exclamations, or a generally flat delivery? Provide a rating (e.g., Flat, Moderate, Expressive) and justification.
-7.  **Suggestions for Improvement:** Offer actionable advice on how to reduce filler words, improve pacing, enhance perceived confidence, and increase clarity.
+// Based *only* on the textual content, provide insights on:
+// 1.  **Frequency of Filler Words:** Count and list the specific filler words used and their occurrences.
+// 2.  **Frequency of Pauses:** Count the number of pauses and note their average duration.
+// 3.  **Overall Fluency:** Comment on how the use of these filler words and pauses might affect the perceived fluency of the speech.
+// 4.  **Perceived Confidence (from text):** Based on word choice, sentence structure, and the presence/absence of filler words/pauses, assess the *perceived* confidence of the speaker. Provide a rating (e.g., Low, Medium, High) and justification.
+// 5.  **Perceived Clarity (from text):** Based on vocabulary, sentence complexity, and the presence/absence of disfluencies, assess the *perceived* clarity of the speech. Provide a rating (e.g., Low, Medium, High) and justification.
+// 6.  **Inferred Tone Modulation (from text):** While direct audio tone is not available, comment on any *inferred* tone modulation based on punctuation, word emphasis (if implied by context), or changes in sentence structure. For example, does the text suggest questions, exclamations, or a generally flat delivery? Provide a rating (e.g., Flat, Moderate, Expressive) and justification.
+// 7.  **Suggestions for Improvement:** Offer actionable advice on how to reduce filler words, improve pacing, enhance perceived confidence, and increase clarity.
 
-Transcript:
-"${transcript}"`;
+// Transcript:
+// "${transcript}"`;
 
-    // Use HuggingFace text generation endpoint
-    const hfResponse = await fetch(
-      "https://api-inference.huggingface.co/models/google/gemma-7b-it",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.HF_API_KEY}`
-        },
-        body: JSON.stringify({ inputs: prompt })
-      }
-    );
+//     // Use HuggingFace text generation endpoint
+//     const hfResponse = await fetch(
+//       "https://api-inference.huggingface.co/models/google/gemma-7b-it",
+//       {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           "Authorization": `Bearer ${process.env.HF_API_KEY}`
+//         },
+//         body: JSON.stringify({ inputs: prompt })
+//       }
+//     );
 
-    if (!hfResponse.ok) {
-      throw new Error(`HuggingFace API error: ${hfResponse.status} ${hfResponse.statusText}`);
-    }
+//     if (!hfResponse.ok) {
+//       throw new Error(`HuggingFace API error: ${hfResponse.status} ${hfResponse.statusText}`);
+//     }
 
-    const hfData = await hfResponse.json();
-    const analysis =
-      Array.isArray(hfData) && hfData[0]?.generated_text
-        ? hfData[0].generated_text
-        : (hfData.generated_text || "No analysis available from the AI model.");
+//     const hfData = await hfResponse.json();
+//     const analysis =
+//       Array.isArray(hfData) && hfData[0]?.generated_text
+//         ? hfData[0].generated_text
+//         : (hfData.generated_text || "No analysis available from the AI model.");
 
-    // Update metadata with analysis (if videoName provided)
-    if (videoName) {
-      const { data: rows, error: fetchError } = await supabase
-        .from("metadata")
-        .select("id")
-        .eq("video_name", videoName)
-        .limit(1);
+//     // Update metadata with analysis (if videoName provided)
+//     if (videoName) {
+//       const { data: rows, error: fetchError } = await supabase
+//         .from("metadata")
+//         .select("id")
+//         .eq("video_name", videoName)
+//         .limit(1);
 
-      if (!fetchError && rows && rows.length > 0) {
-        const { error: updateError } = await supabase
-          .from("metadata")
-          .update({ gemini_speech_analysis: analysis })
-          .eq("id", rows[0].id);
+//       if (!fetchError && rows && rows.length > 0) {
+//         const { error: updateError } = await supabase
+//           .from("metadata")
+//           .update({ gemini_speech_analysis: analysis })
+//           .eq("id", rows[0].id);
 
-        if (updateError) {
-          console.error("Error updating speech analysis:", updateError);
-        }
-      }
-    }
+//         if (updateError) {
+//           console.error("Error updating speech analysis:", updateError);
+//         }
+//       }
+//     }
 
-    // ✅ FIX: Actually send the analysis back to the frontend
-    res.json({ analysis });
+//     // ✅ FIX: Actually send the analysis back to the frontend
+//     res.json({ analysis });
 
-  } catch (error) {
-    console.error("Error in analyzeSpeechWithGemini:", error);
-    res.status(500).json({ 
-      error: "Failed to analyze speech", 
-      details: error.message 
-    });
-  }
-});
+//   } catch (error) {
+//     console.error("Error in analyzeSpeechWithGemini:", error);
+//     res.status(500).json({ 
+//       error: "Failed to analyze speech", 
+//       details: error.message 
+//     });
+//   }
+// });
 
 
 // FIXED: Complete metadata endpoint
 // This is the new, non-pooled metadata endpoint
-app.get('/api/metadata', async (req, res) => {
-    try {
-        // Use the pre-initialized 'db' object for the query
-        const data = await db.any('SELECT * FROM metadata ORDER BY created_at DESC');
 
-        if (data.length > 0) {
-            res.json({ success: true, data: data });
-        } else {
-            res.json({ success: true, data: [] });
+
+
+app.get('/api/metadata', async (req, res) => {
+  console.log("✅ /api/metadata route HIT!");
+    try {
+        const { data, error } = await supabase
+            .from('metadata')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
         }
+
+        // Return data in JSON format
+        res.json({ 
+            success: true, 
+            data: data || [] 
+        });
+
     } catch (error) {
         console.error('Error fetching metadata:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
-    // No need to close the connection here.
 });
 
 
