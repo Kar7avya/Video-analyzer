@@ -1,145 +1,55 @@
-// // // import React from 'react';
-// // // import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
-// // // import { ToastContainer } from 'react-toastify';
-// // // import 'react-toastify/dist/ReactToastify.css';
-
-// // // import Home from './components/pages/Home';
-// // // import Upload from './components/pages/Upload';
-
-// // // import Layout from './components/navigators/Layout'; // 💡 New layout wrapper
-
-// // // import SignUp from './components/pages/SignUp'; 
-
-
-// // // // Add route
-
-// // // function App() {
-// // //   return (
-// // //     <Router>
-// // //       <ToastContainer position="top-center" autoClose={3000} theme="colored" />
-
-// // //       <Routes>
-// // //         {/* Wrap pages in Layout */}
-// // //         <Route path="/" element={<Layout />}>
-// // //           <Route index element={<Home />} />
-// // //           <Route path="upload" element={<Upload />} />
-// // //           <Route path='signup' element={<SignUp/>}/>
-          
-// // //         </Route>
-// // //       </Routes>
-// // //     </Router>
-// // //   );
-// // // }
-
-// // // export default App;
-
-// // import React from 'react';
-// // import { BrowserRouter as Router, Routes, Route ,Navigate} from 'react-router-dom';
-// // import { ToastContainer } from 'react-toastify';
-// // import 'react-toastify/dist/ReactToastify.css';
-
-// // import Home from './components/pages/Home';
-// // import Upload from './components/pages/Upload';
-// // import Layout from './components/navigators/Layout';
-// // import SignUp from  './components/pages/SignUp';
-
-// // function App() {
-// //   return (
-// //     <Router>
-// //       <ToastContainer position="top-center" autoClose={3000} theme="colored" />
-
-// //       <Routes>
-// //         {/* Redirect root to signup */}
-// //         <Route path="/" element={<Navigate to="/signup" replace />} />
-        
-// //         {/* SignUp route */}
-// //         <Route path="/signup" element={<SignUp />} />
-        
-// //         {/* Main website routes wrapped in Layout */}
-// //         <Route path="/home" element={<Layout />}>
-// //           {/* <Route index element={<Home />} />
-// //           <Route path="/upload" element={<Upload />} /> */}
-// //           <Route index element={<Home />} />
-// //         <Route path="upload" element={<Upload />} />
-// //         <Route path='signup' element={<SignUp/>}/>
-// //         </Route>
-// //       </Routes>
-// //     </Router>
-// //   );
-// // }
-
-// // export default App;
-
-// import React from 'react';
-// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-// import { ToastContainer } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
-
-// import Home from './components/pages/Home';
-// import Upload from './components/pages/Upload';
-// import Layout from './components/navigators/Layout';
-// import SignUp from './components/pages/SignUp';
-// import Dashboard from './components/pages/Dashboard';
-
-// function App() {
-//   return (
-//     <Router>
-//       <ToastContainer position="top-center" autoClose={3000} theme="colored" />
-
-//       <Routes>
-//         {/* Redirect root to signup */}
-//         <Route path="/" element={<Navigate to="/signup" replace />} />
-        
-//         {/* Signup route */}
-//         <Route path="/signup" element={<SignUp />} />
-
-//         {/* Main layout with nested pages */}
-//         <Route path="/" element={<Layout />}>
-//           <Route path="home" element={<Home />} />
-//           <Route path="upload" element={<Upload />} />
-//           <Route path='dashboard' element={<Dashboard/>}/>
-//         </Route>
-//       </Routes>
-//     </Router>
-//   );
-// }
-
-// export default App;
-
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-import Home from './components/pages/Home';
-import Upload from './components/pages/Upload';
-import Layout from './components/navigators/Layout';
-import SignUp from './components/pages/SignUp';
-import Dashboard from './components/pages/Dashboard';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
+import VoiceCloning from './components/VoiceCloning';
+import Karaoke from './components/Karaoke';
 
 function App() {
+  const [activeFeature, setActiveFeature] = useState('voice-cloning');
+
   return (
-    <Router>
-      <ToastContainer position="top-center" autoClose={3000} theme="colored" />
+    <div className="App">
+      <div className="container-fluid">
+        {/* Main Navigation */}
+        <nav className="navbar navbar-expand-lg navbar-dark bg-primary mb-0">
+          <div className="container">
+            <span className="navbar-brand">🎤 AI Speech Studio</span>
+            <div className="navbar-nav">
+              <button
+                className={`nav-link btn btn-link text-white ${activeFeature === 'voice-cloning' ? 'active fw-bold' : ''}`}
+                onClick={() => setActiveFeature('voice-cloning')}
+              >
+                🎭 Voice Cloning
+              </button>
+              <button
+                className={`nav-link btn btn-link text-white ${activeFeature === 'karaoke' ? 'active fw-bold' : ''}`}
+                onClick={() => setActiveFeature('karaoke')}
+              >
+                🎤 Speech Karaoke
+              </button>
+            </div>
+          </div>
+        </nav>
 
-      <Routes>
-        {/* Redirect root to signup */}
-        <Route path="/" element={<Navigate to="/signup" replace />} />
+        {/* Feature Content */}
+        {activeFeature === 'voice-cloning' && <VoiceCloning />}
+        {activeFeature === 'karaoke' && <Karaoke />}
+      </div>
 
-        {/* Public signup route */}
-        <Route path="/signup" element={<SignUp />} />
-
-        {/* Protected/main routes wrapped in Layout */}
-        <Route path="/" element={<Layout />}>
-          <Route path="home" element={<Home />} />
-          <Route path="upload" element={<Upload />} />
-          <Route path="dashboard" element={<Dashboard />} />
-        </Route>
-
-        {/* Catch-all: redirect unknown paths to signup */}
-        <Route path="*" element={<Navigate to="/signup" replace />} />
-      </Routes>
-    </Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </div>
   );
 }
 
