@@ -1,32 +1,174 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaCloudUploadAlt } from "react-icons/fa"; // Import the cloud upload icon
+import { FaCloudUploadAlt } from "react-icons/fa";
 import styled from 'styled-components';
 import mic from "../pages/mic.png";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASEANONKEY
+);
 
 export default function Upload() {
   const [file, setFile] = useState(null);
   const [filename, setFilename] = useState("");
-  const [publicUrl, setPublicUrl] = useState(""); // Store Supabase public URL
-  const [responses, setResponses] = useState([]); // Stores Gemini frame analysis responses
+  const [publicUrl, setPublicUrl] = useState("");
+  const [responses, setResponses] = useState([]);
   const [elevenLabsTranscript, setElevenLabsTranscript] = useState("");
   const [deepgramTranscript, setDeepgramTranscript] = useState("");
-  const [llmAnalysisResult, setLlmAnalysisResult] = useState(""); // State for LLM speech analysis result
-  const [loading, setLoading] = useState(false); // Manages loading state for the entire process
-  const [dragOver, setDragOver] = useState(false); // State for drag-over effect
-  const [showTextArea, setShowTextArea] = useState(false); // State to show/hide text area
-  const fileInputRef = useRef(null); // Ref for the hidden file input
+  const [llmAnalysisResult, setLlmAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [showTextArea, setShowTextArea] = useState(false);
+  const fileInputRef = useRef(null);
+  const [userId, setUserId] = useState(null);
+
+  
+
+
+
+        /////////////////////////////////////////////////
+        //////////////////
+        // Enhanced Upload.js with better token handling and debugging
+
+useEffect(() => {
+  const fetchUserId = async () => {
+    try {
+      // 1. Get token from localStorage with additional validation
+      const token = localStorage.getItem("supabase.auth.token");
+      
+      // Enhanced token validation
+      if (!token) {
+        console.warn("No token found in localStorage");
+        toast.error("Please log in to upload files.");
+        return;
+      }
+
+      // Parse and validate token structure if it's a JSON object
+      let accessToken;
+      try {
+        const parsedToken = JSON.parse(token);
+        accessToken = parsedToken.access_token;
+        
+        // Check if token is expired
+        if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
+          console.warn("Token has expired");
+          toast.error("Session expired. Please log in again.");
+          localStorage.removeItem("supabase.auth.token");
+          return;
+        }
+      } catch (parseError) {
+        // If it's not JSON, assume it's the raw token
+        accessToken = token;
+      }
+
+      if (!accessToken) {
+        console.warn("No access token found");
+        toast.error("Invalid session. Please log in again.");
+        return;
+      }
+
+      console.log("Using token:", accessToken.substring(0, 20) + "..."); // Debug log (partial token)
+
+      // 2. Fetch data from the backend
+      const response = await fetch("http://localhost:8000/getUser", {
+        method: "GET",
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      console.log("Response status:", response.status); // Debug log
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Response data:", data); // Debug log
+        
+        if (data.user && data.user.id) {
+          setUserId(data.user.id);
+          console.log("Fetched User ID:", data.user.id);
+        } else {
+          console.warn("No user data found in response");
+          toast.error("User not logged in. Please log in to upload files.");
+        }
+      } else {
+        // Handle specific error cases
+        if (response.status === 401) {
+          console.error("Authentication failed - token may be invalid or expired");
+          toast.error("Session expired. Please log in again.");
+          localStorage.removeItem("supabase.auth.token"); // Clear invalid token
+        } else {
+          console.error("Failed to fetch user:", response.status, response.statusText);
+          toast.error("Failed to fetch user info. Please try again.");
+        }
+        
+        // Try to get error details from response
+        try {
+          const errorData = await response.json();
+          console.error("Error details:", errorData);
+        } catch (e) {
+          // Response might not be JSON
+        }
+      }
+    } catch (error) {
+      console.error("Network error fetching user:", error);
+      toast.error("Network error. Please check your connection.");
+    }
+  };
+
+  fetchUserId();
+}, []);
+
+// Alternative: Get token directly from Supabase client (if you have it available)
+// This is often more reliable than localStorage
+/*
+useEffect(() => {
+  const fetchUserId = async () => {
+    try {
+      // Get session from Supabase client
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        console.warn("No valid session found");
+        toast.error("Please log in to upload files.");
+        return;
+      }
+
+      const response = await fetch("http://localhost:8000/getUser", {
+        method: "GET",
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      // ... rest of the fetch logic
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      toast.error("An error occurred while fetching user info.");
+    }
+  };
+
+  fetchUserId();
+}, []);
+*/
+        ////////////
+        ///////////////
+        
+       
+ 
 
   useEffect(() => {
     if (file) {
-      handleUpload({ preventDefault: () => {} }); // dummy event
+      handleUpload({ preventDefault: () => {} });
     }
   }, [file]);
 
-  // Function to handle file selection (from drag/drop or click)
   const handleFileSelect = (selectedFile) => {
-    const maxSize = 500 * 1024 * 1024; // 500MB
+    const maxSize = 500 * 1024 * 1024;
     const allowedTypes = [
       "video/mp4",
       "video/quicktime",
@@ -50,7 +192,6 @@ export default function Upload() {
     setFile(selectedFile);
   };
 
-  // Drag & Drop Handlers
   const handleDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
@@ -78,7 +219,7 @@ export default function Upload() {
   };
 
   const handleUpload = async (e) => {
-    e.preventDefault(); // Keep this for form submission, but the auto-trigger passes a dummy
+    e.preventDefault();
 
     if (!file) {
       toast.error("❗ Please select a video or audio file!");
@@ -86,7 +227,6 @@ export default function Upload() {
     }
 
     setLoading(true);
-    // Clear previous results
     setResponses([]);
     setElevenLabsTranscript("");
     setDeepgramTranscript("");
@@ -94,34 +234,113 @@ export default function Upload() {
     setPublicUrl("");
 
     try {
-      // 1️⃣ Upload file to backend (which uploads to Supabase and creates metadata)
-      toast.info("⬆️ Uploading file to Supabase...");
-      const formData = new FormData();
-      formData.append("myvideo", file);
+  toast.info("⬆️ Uploading file to Supabase...");
+  
+  // Get valid token before upload
+  const accessToken = getValidToken(); // Use the helper function from previous code
+  
+  if (!accessToken) {
+    throw new Error("Authentication token not found. Please log in again.");
+  }
 
-      const uploadRes = await fetch("http://localhost:8000/upload", {
-        method: "POST",
-        body: formData,
-      });
+  if (!userId) {
+    throw new Error("User ID not found. Please refresh and try again.");
+  }
 
-      if (!uploadRes.ok) {
-        const errorText = await uploadRes.text();
-        throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
+  console.log("Starting upload with token:", accessToken.substring(0, 20) + "...");
+  console.log("User ID:", userId);
+  console.log("File:", file.name, file.size, "bytes");
+
+  const formData = new FormData();
+  formData.append("myvideo", file);
+  formData.append("user_id", userId);
+
+  const uploadRes = await fetch("http://localhost:8000/upload", {
+    method: "POST",
+    headers: {
+      'Authorization': `Bearer ${accessToken}`, // ✅ This was missing!
+      // Don't set Content-Type - browser will set it automatically for FormData
+    },
+    body: formData,
+  });
+
+  console.log("Upload response status:", uploadRes.status);
+
+  if (!uploadRes.ok) {
+    let errorText;
+    try {
+      const errorJson = await uploadRes.json();
+      errorText = errorJson.error || JSON.stringify(errorJson);
+    } catch {
+      errorText = await uploadRes.text();
+    }
+    
+    console.error("Upload failed:", uploadRes.status, errorText);
+    
+    // Handle specific error cases
+    if (uploadRes.status === 401) {
+      toast.error("Authentication failed. Please log in again.");
+      localStorage.removeItem("supabase.auth.token");
+      // You might want to redirect to login or refresh the page
+      return;
+    }
+    
+    throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
+  }
+
+  const uploadData = await uploadRes.json();
+  console.log("Upload successful:", uploadData);
+  
+  const uploadedFilename = uploadData.videoName;
+  const uploadPublicUrl = uploadData.publicUrl;
+
+  if (!uploadedFilename) {
+    throw new Error("No filename received from server");
+  }
+
+  setFilename(uploadedFilename);
+  setPublicUrl(uploadPublicUrl);
+  toast.success("✅ File uploaded to Supabase and metadata saved successfully!");
+  
+} catch (error) {
+  console.error("Upload error:", error);
+  toast.error(`Upload failed: ${error.message}`);
+}
+
+// Helper function to get valid token (add this to your component if not already present)
+const getValidToken = () => {
+  try {
+    const token = localStorage.getItem("supabase.auth.token");
+    
+    if (!token) {
+      console.warn("No token found in localStorage");
+      return null;
+    }
+
+    // Parse and validate token structure if it's a JSON object
+    let accessToken;
+    try {
+      const parsedToken = JSON.parse(token);
+      accessToken = parsedToken.access_token;
+      
+      // Check if token is expired
+      if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
+        console.warn("Token has expired");
+        localStorage.removeItem("supabase.auth.token");
+        return null;
       }
+    } catch (parseError) {
+      // If it's not JSON, assume it's the raw token
+      accessToken = token;
+    }
 
-      const uploadData = await uploadRes.json();
-      const uploadedFilename = uploadData.videoName;
-      const uploadPublicUrl = uploadData.publicUrl;
+    return accessToken;
+  } catch (error) {
+    console.error("Error getting token:", error);
+    return null;
+  }
+};
 
-      if (!uploadedFilename) {
-        throw new Error("No filename received from server");
-      }
-
-      setFilename(uploadedFilename);
-      setPublicUrl(uploadPublicUrl);
-      toast.success("✅ File uploaded to Supabase and metadata saved successfully!");
-
-      // 2️⃣ Extract frames (only for video, backend should handle audio gracefully)
       toast.info("🖼️ Extracting frames (if video)...");
       const extractForm = new FormData();
       extractForm.append("videoName", uploadedFilename);
@@ -139,7 +358,6 @@ export default function Upload() {
         toast.success("✅ Frames extracted (if video)!");
       }
 
-      // 3️⃣ Analyze frames using Gemini (only for video)
       toast.info("🤖 Analyzing frames with Gemini (if video)...");
       const analyzeRes = await fetch("http://localhost:8000/analyzeAllFrames");
 
@@ -156,7 +374,6 @@ export default function Upload() {
         toast.success("✅ Frame analysis complete (if video)!");
       }
 
-      // 4️⃣ Transcribe with ElevenLabs
       toast.info("🗣️ Transcribing with ElevenLabs...");
       const elevenForm = new FormData();
       elevenForm.append("videoName", uploadedFilename);
@@ -180,7 +397,6 @@ export default function Upload() {
       setElevenLabsTranscript(elevenTranscript);
       toast.success("✅ ElevenLabs transcription done!");
 
-      // 5️⃣ Transcribe with Deepgram
       toast.info("🧠 Transcribing with Deepgram...");
       const deepgramForm = new FormData();
       deepgramForm.append("videoName", uploadedFilename);
@@ -200,7 +416,6 @@ export default function Upload() {
       setDeepgramTranscript(deepgramTranscript);
       toast.success("✅ Deepgram transcription done!");
 
-      // 6️⃣ Call LLM for Speech Analysis using the Deepgram transcript
       if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
         toast.info("✨ Analyzing speech with Gemini...");
         try {
@@ -227,7 +442,6 @@ export default function Upload() {
           setLlmAnalysisResult(analysisData.analysis);
           toast.success("✅ Speech analysis by Gemini complete!");
           console.log("Speech Analysis by Gemini:", analysisData.analysis);
-
         } catch (analysisErr) {
           console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
           toast.error("❌ Speech analysis failed. Check console for details.");
@@ -236,7 +450,6 @@ export default function Upload() {
         console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
         toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
       }
-
     } catch (err) {
       console.error("Upload/Processing Error:", err.message || err);
       toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
@@ -245,7 +458,6 @@ export default function Upload() {
     }
   };
 
-  // State for manual transcript
   const [manualTranscript, setManualTranscript] = useState("");
 
   const handleManualTextAnalysis = async () => {
@@ -255,7 +467,7 @@ export default function Upload() {
     }
 
     setLoading(true);
-    setLlmAnalysisResult(""); // Clear previous results
+    setLlmAnalysisResult("");
 
     try {
       toast.info("✨ Analyzing text with Gemini...");
@@ -282,7 +494,6 @@ export default function Upload() {
       setLlmAnalysisResult(analysisData.analysis);
       toast.success("✅ Text analysis by Gemini complete!");
       console.log("Text Analysis by Gemini:", analysisData.analysis);
-
     } catch (error) {
       console.error("Text Analysis Error:", error.message || error);
       toast.error(`❌ Text analysis failed: ${error.message || "An unknown error occurred."}`);
@@ -291,56 +502,51 @@ export default function Upload() {
     }
   };
 
-  // Show loading/processing state
- if (loading) {
-  return (
-    <StyledWrapper>
-      <section className="py-5 bg-white min-h-screen flex items-center justify-center" id="upload">
-        <div className="container mx-auto">
-          <div className="flex justify-center">
-            <div className="w-full lg:w-3/4">
-              <div className="card shadow-lg rounded-xl overflow-hidden">
-                <div className="card-body text-center p-8">
-                  
-                  {/* 🔹 Replace spinner with your StyledWrapper loader */}
-                  <div className="loader mb-6">
-                    <span className="letter l">A</span>
-                    <span className="letter o">N</span>
-                    <span className="letter a">A</span>
-                    <span className="letter d">L</span>
-                    <span className="letter d">Y</span>
-                    <span className="letter d">S</span>
-                    
-                    
-                    <img src={mic} alt="Mic" style={{ width: "55px", height: "50px" }} />
+  if (loading) {
+    return (
+      <StyledWrapper>
+        <section className="py-5 bg-white min-h-screen flex items-center justify-center" id="upload">
+          <div className="container mx-auto">
+            <div className="flex justify-center">
+              <div className="w-full lg:w-3/4">
+                <div className="card shadow-lg rounded-xl overflow-hidden">
+                  <div className="card-body text-center p-8">
+                    <div className="loader mb-6">
+                      <span className="letter a">A</span>
+                      <span className="letter n">N</span>
+                      <span className="letter a">A</span>
+                      <span className="letter l">L</span>
+                      <span className="letter y">Y</span>
+                      <span className="letter s">S</span>
+                      <span className="letter i">I</span>
+                      <span className="letter n">N</span>
+                      <span className="letter g">G</span>
+                      <img src={mic} alt="Mic" style={{ width: "55px", height: "50px" }} />
+                    </div>
 
-                    <span className="letter n">N</span>
-                    <span className="letter g">G</span>
+                    <h5 className="text-2xl font-semibold mb-4 text-gray-800">
+                      Processing Your Presentation...
+                    </h5>
+
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                      <div
+                        className="bg-indigo-600 h-2.5 rounded-full animate-pulse"
+                        style={{ width: '75%' }}
+                      ></div>
+                    </div>
+
+                    <p className="text-muted text-gray-600 mb-0">
+                      Analyzing your video/audio, extracting frames, transcribing, and generating insights...
+                    </p>
                   </div>
-
-                  <h5 className="text-2xl font-semibold mb-4 text-gray-800">
-                    Processing Your Presentation...
-                  </h5>
-
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                    <div
-                      className="bg-indigo-600 h-2.5 rounded-full animate-pulse"
-                      style={{ width: '75%' }}
-                    ></div>
-                  </div>
-
-                  <p className="text-muted text-gray-600 mb-0">
-                    Analyzing your video/audio, extracting frames, transcribing, and generating insights...
-                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-    </StyledWrapper>
-  );
-}
+        </section>
+      </StyledWrapper>
+    );
+  }
 
   return (
     <section className="py-8 bg-white min-h-screen" id="upload">
@@ -352,7 +558,6 @@ export default function Upload() {
               <p className="text-lg text-gray-600">Drag & drop your video or audio file, or click to browse</p>
             </div>
 
-            {/* Upload Area */}
             <div
               className={`upload-area flex flex-col items-center justify-center p-10 mb-6 bg-white border-2 border-dashed rounded-lg cursor-pointer transition-colors duration-300
                 ${dragOver ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'}
@@ -378,7 +583,6 @@ export default function Upload() {
               />
             </div>
 
-            {/* Manual Transcript Option */}
             <div className="text-center mb-6">
               <button
                 className="btn px-6 py-3 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-100 transition-colors shadow-sm"
@@ -401,7 +605,7 @@ export default function Upload() {
                 <button
                   className="btn px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-md"
                   onClick={handleManualTextAnalysis}
-                  disabled={loading} // Use general loading state
+                  disabled={loading}
                 >
                   <i className="bi bi-search mr-2"></i>
                   {loading ? 'Analyzing...' : 'Analyze Text'}
@@ -409,7 +613,6 @@ export default function Upload() {
               </div>
             )}
 
-            {/* Display sections for results (video, frame, transcripts, LLM analysis) */}
             {filename && publicUrl && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md text-center border border-gray-200">
                 <h4 className="text-2xl font-semibold mb-4 text-gray-800">🎬 Uploaded File: <span className="text-indigo-600">{filename}</span></h4>
@@ -461,7 +664,7 @@ export default function Upload() {
             )}
 
             {deepgramTranscript && (
-                           <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
+              <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
                 <h3 className="text-3xl font-bold mb-6 text-gray-800">🧠 Deepgram Transcript (with filler words & pauses)</h3>
                 <div className="bg-gray-50 p-6 rounded-md overflow-auto max-h-96 border border-gray-200">
                   <pre className="whitespace-pre-wrap font-mono text-base text-gray-700 leading-relaxed">{deepgramTranscript}</pre>
@@ -477,7 +680,6 @@ export default function Upload() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
@@ -493,41 +695,39 @@ const StyledWrapper = styled.div`
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 0.5rem; /* ✅ space between letters */
+    gap: 0.5rem;
     overflow: hidden;
   }
 
   .loader span {
-    display: inline-block; /* ✅ allows transforms per letter */
+    display: inline-block;
     transform: translateY(4rem);
     animation: hideAndSeek 1s alternate infinite cubic-bezier(0.86, 0, 0.07, 1);
   }
 
-  /* delay each letter */
-  .loader .l   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 0); }
-  .loader .o   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 1); }
-  .loader .a   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 2); }
-  .loader .d   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 3); }
-  .loader .i   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 4); }
-  .loader .n   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 5); }
-  .loader .g   { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 6); }
+  .loader .a { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 0); }
+  .loader .n { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 1); }
+  .loader .l { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 2); }
+  .loader .y { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 3); }
+  .loader .s { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 4); }
+  .loader .i { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 5); }
+  .loader .n { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 6); }
+  .loader .g { animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 7); }
 
   .letter {
     width: fit-content;
     height: 4rem;
     font-size: 3rem;
     font-weight: 900;
-    color: #16b499ff; /* ✅ visible solid color */
+    color: #16b499ff;
   }
 
   .loader .i {
-    margin-inline: 5px; /* ✅ small spacing tweak for "I" */
+    margin-inline: 5px;
   }
 
   @keyframes hideAndSeek {
-    0%   { transform: translateY(4rem); opacity: 0.3; }
-    100% { transform: translateY(0);    opacity: 1; }
+    0% { transform: translateY(4rem); opacity: 0.3; }
+    100% { transform: translateY(0); opacity: 1; }
   }
 `;
-
-
