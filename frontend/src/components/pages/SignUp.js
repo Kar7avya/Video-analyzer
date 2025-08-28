@@ -1,235 +1,120 @@
-// import React,{useState} from "react";
-// import { useNavigate } from "react-router-dom";
-// import { toast } from "react-toastify";
-// import supabase from"./supabaseClient";
-
-// const SignUp = () =>{
-
-//     const navigate = useNavigate();
-
-//     const [formData,setFormData] =useState({
-//         fullname:'',
-//         email:'',
-//         password:''
-
-//     });
-
-//     console.log("FORM",formData);
-
-//     function handleChange(event){
-
-//         setFormData((prevFormData)=>{
-//             return{
-//                 ...prevFormData,
-//                 [event.target.name]:event.target.value
-//             }
-//         });
-//     }
-
-//     async function handleSubmit(e){
-
-//         e.preventDefault()
-
-//         try {
-
-//             const{data,error} = await supabase.auth.signUp(
-//             {
-//                 email:formData.email,
-//                 password: formData.password,
-//                 options:{
-//                     data:{
-//                         first_name:formData.fullname,
-                    
-//                     }
-//                 }
-//             }
-//         )
-
-//         toast.success('Check your email for verification link');
-            
-//         } catch (error) {
-//             toast.error('An error occurred during signup');
-//             console.error('Signup error:', error);
-//         }
-
-
-
-//     }
-
-//     // function handleSubmit(event) {
-//     //     event.preventDefault(); // Prevent page reload
-        
-//     //     // Basic validation
-//     //     if (!formData.fullname || !formData.email || !formData.password) {
-//     //         toast.error('Please fill in all fields');
-//     //         return;
-//     //     }
-
-//     //     // Here you would typically make an API call to register the user
-//     //     console.log('Submitting:', formData);
-
-//     //     toast.success('Account created successfully!');
-        
-//     //     // Navigate to home page after successful signup
-//     //     setTimeout(() => {
-//     //         navigate('/');
-//     //     }, 2000); // Wait 2 seconds to show success message
-//     // }
-
-//     return(
-//         <div >
-//             <h2>SignUp</h2>
-//         <form onSubmit={handleSubmit}>
-//             <input
-//             placeholder='Fullname'
-//             name='fullName'
-//             onChange={handleChange}
-//             />
-
-//             <input
-//             placeholder='Email'
-//             name='email'
-//             onChange={handleChange}
-//             />
-
-//             <input
-//             placeholder='Password'
-//             name='password'
-//             onChange={handleChange}
-//             />
-
-//             <button type ='submit' >
-//                 Submit
-//             </button>
-
-
-//         </form>
-//         </div>
-//     )
-// }
-
-// export default SignUp;
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import supabase from "./supabaseClient";
 
 const SignUp = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        fullname: '',
-        email: '',
-        password: ''
-    });
+  const [formData, setFormData] = useState({
+    fullname: "",
+    email: "",
+    password: "",
+  });
 
-    const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    console.log("FORM", formData);
+  function handleChange(e) {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  }
 
-    function handleChange(event) {
-        setFormData((prevFormData) => {
-            return {
-                ...prevFormData,
-                [event.target.name]: event.target.value
-            }
-        });
+  async function handleSubmit(e) {
+    e.preventDefault();
+    console.log("📩 Submitting form with data:", formData);
+
+    if (!formData.fullname || !formData.email || !formData.password) {
+      toast.error("Please fill in all fields");
+      return;
     }
 
-    async function handleSubmit(e) {  // ✅ Fixed: Added 'e' parameter
-        e.preventDefault();
-
-        // Basic validation
-        if (!formData.fullname || !formData.email || !formData.password) {
-            toast.error('Please fill in all fields');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const { data, error } = await supabase.auth.signUp({
-                email: formData.email,
-                password: formData.password,
-                options: {
-                    data: {
-                        full_name: formData.fullname, // ✅ Better naming
-                    }
-                }
-            });
-
-            if (error) {
-                toast.error(error.message);
-                return;
-            }
-
-            toast.success('Check your email for verification link');
-            
-            // Navigate to login or home after successful signup
-            navigate('/home');
-            
-            console.log('Navigation called to /home');
-
-        } catch (error) {
-            toast.error('An error occurred during signup');
-            console.error('Signup error:', error);
-        } finally {
-            setLoading(false);
-        }
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
     }
 
-    return (
-        <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem' }}>
-            <h2>Sign Up</h2>
-            <form onSubmit={handleSubmit}>
-                <input
-                    placeholder='Full Name'
-                    name='fullname'  // ✅ Fixed: matches formData property
-                    value={formData.fullname}
-                    onChange={handleChange}
-                    style={{ display: 'block', width: '100%', margin: '1rem 0', padding: '0.5rem' }}
-                    required
-                />
+    setLoading(true);
 
-                <input
-                    placeholder='Email'
-                    name='email'
-                    type='email'
-                    value={formData.email}
-                    onChange={handleChange}
-                    style={{ display: 'block', width: '100%', margin: '1rem 0', padding: '0.5rem' }}
-                    required
-                />
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: { full_name: formData.fullname },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-                <input
-                    placeholder='Password'
-                    name='password'
-                    type='password'
-                    value={formData.password}
-                    onChange={handleChange}
-                    style={{ display: 'block', width: '100%', margin: '1rem 0', padding: '0.5rem' }}
-                    required
-                />
+      console.log("🔍 Supabase response:", { data, error });
 
-                <button 
-                    type='submit' 
-                    disabled={loading}
-                    style={{ 
-                        width: '100%', 
-                        padding: '0.75rem', 
-                        backgroundColor: loading ? '#ccc' : '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: loading ? 'not-allowed' : 'pointer'
-                    }}
-                >
-                    {loading ? 'Creating Account...' : 'Sign Up'}
-                </button>
-            </form>
-        </div>
-    );
-}
+      if (error) {
+        console.error("❌ Supabase signup error:", error);
+        toast.error(error.message);
+        return;
+      }
+
+      if (!data.session) {
+        console.log("✅ Signup success, but no session yet (check email)");
+        toast.success(
+          `Verification email sent to ${formData.email}. Please confirm before login.`
+        );
+        sessionStorage.setItem("pending_email", formData.email);
+        navigate("/login?message=verify-email");
+      } else {
+        console.log("✅ Signup success with active session:", data.session);
+        localStorage.setItem("access_token", data.session.access_token);
+        localStorage.setItem("refresh_token", data.session.refresh_token);
+        toast.success("Account created and logged in!");
+        navigate("/home");
+      }
+    } catch (err) {
+      console.error("⚡ Unexpected signup error:", err);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 400, margin: "2rem auto", padding: "2rem" }}>
+      <h2>Create Account</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          placeholder="Full Name"
+          name="fullname"
+          value={formData.fullname}
+          onChange={handleChange}
+          required
+        />
+        <input
+          placeholder="Email"
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+        />
+        <input
+          placeholder="Password"
+          name="password"
+          type="password"
+          value={formData.password}
+          onChange={handleChange}
+          minLength={6}
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Sign Up"}
+        </button>
+      </form>
+      <p>
+        Already have an account?{" "}
+        <button onClick={() => navigate("/login")}>Login</button>
+      </p>
+    </div>
+  );
+};
 
 export default SignUp;
