@@ -47,7 +47,10 @@ const port = 8000;
 const PAUSE_THRESHOLD = 0.5;
 
 // Middleware setup
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Set the specific origin of your frontend
+  credentials: true, // This must be true to allow cookies
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -83,90 +86,301 @@ const deepgram = createDeepgramClient(process.env.DEEPGRAM_API_KEY);
 
 console.log("✅ API keys loaded successfully");
 
-app.post("/upload", videoUpload.single("myvideo"), async (req, res) => {
+
+
+
+const authenticateUser = async (req, res, next) => {
   try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).send("No file uploaded");
+    console.log("🔍 Auth check - Headers received:", req.headers.authorization ? "Present" : "Missing");
+    
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn("❌ Authentication failed: Missing or invalid Authorization header");
+      console.log("Headers:", JSON.stringify(req.headers, null, 2)); // Debug all headers
+      return res.status(401).json({ error: 'No valid authorization token provided' });
     }
-    console.log("File received for upload");
-    console.log("Original filename:", file.originalname);
 
-    const fileBuffer = await fsp.readFile(file.path);
-    console.log("File buffer created");
+    const token = authHeader.substring(7);
+    console.log("🔑 Token received (first 20 chars):", token.substring(0, 20) + "...");
 
-    // 🔧 GENERATE THE SAME FILENAME FORMAT AS YOUR FRONTEND
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const randomId = Math.random().toString(36).substring(2, 15);
-    const fileExtension = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, fileExtension);
-    
-    // Create the renamed filename that matches your frontend format
-    const renamedFilename = `${timestamp}-${randomId}-${baseName}${fileExtension}`;
-    
-    console.log("Renamed filename:", renamedFilename);
+    // Validate token format (JWT tokens have 3 parts separated by dots)
+    if (token.split('.').length !== 3) {
+      console.warn("❌ Token format invalid - not a proper JWT");
+      return res.status(401).json({ error: 'Invalid token format' });
+    }
 
-    // Upload with the renamed filename
-    const { error } = await supabase.storage
-      .from("projectai")
-      .upload(`videos/${renamedFilename}`, fileBuffer, {
-        contentType: file.mimetype,
-        upsert: true,
-      });
+    console.log("🔍 Validating token with Supabase...");
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error) {
-      console.error("Supabase upload error:", error);
-      return res.status(500).send("Upload to Supabase failed");
+      console.warn("❌ Supabase auth error:", error.message);
+      console.warn("Error details:", JSON.stringify(error, null, 2));
+      return res.status(401).json({ error: 'Invalid or expired token', details: error.message });
     }
 
-    // Get public URL for the uploaded file
-    const { data: publicUrlData } = supabase
-      .storage
-      .from("projectai")
-      .getPublicUrl(`videos/${renamedFilename}`);
-
-    const publicUrl = publicUrlData.publicUrl;
-
-    console.log("TRYING TO INSERT IN SUPABASE METATABLE");
-
-    // 🔧 FIXED: Insert metadata with the SAME filename used in storage
-    const { data: insertData, error: insertError } = await supabase
-      .from("metadata")
-      .insert([{
-        user_id: 1, // For now hardcoded
-        video_name: renamedFilename, // 🚨 Use renamed filename, not original
-        original_name: file.originalname, // Keep original name for reference
-        video_url: publicUrl,
-        // video_path: `videos/${renamedFilename}`, // 🚨 Use renamed filename
-        // frames: [],
-        // elevanlabs_transcript: null,
-        // deepgram_transcript: null
-      }]);
-
-      console.log("INSERTING IN META TABLE ELSE ERROR");
-    if (error) {
-      console.error("Error inserting metadata:", insertError.message);
-      console.error("Insert error details:", insertError);
-      return res.status(500).send("Failed to save metadata");
+    if (!user) {
+      console.warn("❌ No user returned from Supabase");
+      return res.status(401).json({ error: 'User not found' });
     }
 
-    console.log("✅ Metadata saved with filename:", renamedFilename);
-
-    // Delete local file after upload
-    await fsp.unlink(file.path);
-
-    // Return the renamed filename so frontend knows what to use
-    res.status(200).json({ 
-      message: "Upload successful!", 
-      videoName: renamedFilename, // 🚨 Return renamed filename
-      originalName: file.originalname,
-      publicUrl: publicUrl 
-    });
-
+    req.user = user;
+    console.log("✅ User authenticated successfully:", user.id);
+    next();
   } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).send("Server error");
+    console.error('❌ Auth middleware error:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ error: 'Authentication failed due to a server error' });
   }
+};
+
+// Enhanced /getUser route with additional debugging
+app.get("/getUser", authenticateUser, async (req, res) => {
+  try {
+    console.log("📝 /getUser endpoint hit - User ID:", req.user?.id);
+    
+    // Additional user validation
+    if (!req.user || !req.user.id) {
+      console.error("❌ User object invalid:", req.user);
+      return res.status(500).json({ error: "User data incomplete" });
+    }
+
+    res.json({ 
+      user: req.user,
+      timestamp: new Date().toISOString() // Helpful for debugging
+    });
+  } catch (err) {
+    console.error("❌ Error in /getUser endpoint:", err);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Add a test endpoint to check if the server is running properly
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    message: "Server is running"
+  });
+});
+
+// CORS debugging middleware (add this before your routes)
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+  next();
+});
+
+// app.post("/upload", videoUpload.single("myvideo"), async (req, res) => {
+//   try {
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).send("No file uploaded");
+//     }
+//     console.log("File received for upload");
+//     console.log("Original filename:", file.originalname);
+
+//     const fileBuffer = await fsp.readFile(file.path);
+//     console.log("File buffer created");
+
+//     // 🔧 GENERATE THE SAME FILENAME FORMAT AS YOUR FRONTEND
+//     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+//     const randomId = Math.random().toString(36).substring(2, 15);
+//     const fileExtension = path.extname(file.originalname);
+//     const baseName = path.basename(file.originalname, fileExtension);
+    
+//     // Create the renamed filename that matches your frontend format
+//     const renamedFilename = `${timestamp}-${randomId}-${baseName}${fileExtension}`;
+    
+//     console.log("Renamed filename:", renamedFilename);
+
+//     // Upload with the renamed filename
+//     const { error } = await supabase.storage
+//       .from("projectai")
+//       .upload(`videos/${renamedFilename}`, fileBuffer, {
+//         contentType: file.mimetype,
+//         upsert: true,
+//       });
+
+//     if (error) {
+//       console.error("Supabase upload error:", error);
+//       return res.status(500).send("Upload to Supabase failed");
+//     }
+
+//     // Get public URL for the uploaded file
+//     const { data: publicUrlData } = supabase
+//       .storage
+//       .from("projectai")
+//       .getPublicUrl(`videos/${renamedFilename}`);
+
+//     const publicUrl = publicUrlData.publicUrl;
+
+//     console.log("TRYING TO INSERT IN SUPABASE METATABLE");
+
+//     // 🔧 FIXED: Insert metadata with the SAME filename used in storage
+//     // const { data: insertData, error: insertError } = await supabase
+//     //   .from("metadata")
+//     //   .insert([{
+//     //     user_id: 1, // For now hardcoded
+//     //     video_name: renamedFilename, // 🚨 Use renamed filename, not original
+//     //     original_name: file.originalname, // Keep original name for reference
+//     //     video_url: publicUrl,
+//     //     // video_path: `videos/${renamedFilename}`, // 🚨 Use renamed filename
+//     //     // frames: [],
+//     //     // elevanlabs_transcript: null,
+//     //     // deepgram_transcript: null
+//     //   }]);
+
+//     // 1. Get current user
+// try {
+//   // 1️⃣ Get current session
+//   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+//   if (sessionError || !session) {
+//     console.error("❌ No active session or error:", sessionError);
+//     return;
+//   }
+
+//   // 2️⃣ Get user from session
+//   const user = session.user; // ✅ only declare once
+//   console.log("✅ Logged-in user ID:", user.id);
+
+//   // 3️⃣ Insert metadata row using dynamic user ID
+//   const { data: insertData, error: insertError } = await supabase
+//     .from("metadata")
+//     .insert([{
+//       user_id: user.id,               
+//       video_name: renamedFilename,
+//       original_name: file.originalname,
+//       video_url: publicUrl
+//     }]);
+
+//   // 4️⃣ Check if insert was successful
+//   if (insertError) {
+//     console.error("❌ Error inserting metadata:", insertError);
+//   } else {
+//     console.log("✅ Metadata saved successfully:", insertData);
+//   }
+
+// } catch (err) {
+//   console.error("❌ Unexpected error:", err);
+// }
+
+
+
+//     if (insertData) {
+//       console.log("✅ Metadata insert response:", insertData);
+//     }
+
+//       console.log("INSERTING IN META TABLE ELSE ERROR");
+//     if (error) {
+//       console.error("Error inserting metadata:", insertError.message);
+//       console.error("Insert error details:", insertError);
+//       return res.status(500).send("Failed to save metadata");
+//     }
+
+//     console.log("✅ Metadata saved with filename:", renamedFilename);
+
+//     // Delete local file after upload
+//     await fsp.unlink(file.path);
+
+//     // Return the renamed filename so frontend knows what to use
+//     res.status(200).json({ 
+//       message: "Upload successful!", 
+//       videoName: renamedFilename, // 🚨 Return renamed filename
+//       originalName: file.originalname,
+//       publicUrl: publicUrl 
+//     });
+
+//   } catch (err) {
+//     console.error("Upload error:", err);
+//     res.status(500).send("Server error");
+//   }
+// });
+// ... (Your existing imports and middleware)
+
+// ------------------------------------------------------------------
+// The UPLOAD ROUTE
+// ------------------------------------------------------------------
+app.post("/upload", authenticateUser, videoUpload.single("myvideo"), async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) {
+            return res.status(400).send("No file uploaded");
+        }
+        
+        // The authenticateUser middleware has already verified the user
+        // and attached the user object to req.user. We can now use it.
+        const userId = req.user.id;
+
+        console.log("File received for upload");
+        console.log("Original filename:", file.originalname);
+
+        const fileBuffer = await fsp.readFile(file.path);
+        console.log("File buffer created");
+
+        // Generate the renamed filename
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const randomId = Math.random().toString(36).substring(2, 15);
+        const fileExtension = path.extname(file.originalname);
+        const baseName = path.basename(file.originalname, fileExtension);
+        const renamedFilename = `${timestamp}-${randomId}-${baseName}${fileExtension}`;
+
+        console.log("Renamed filename:", renamedFilename);
+
+        // Upload to Supabase storage
+        const { error } = await supabase.storage
+            .from("projectai")
+            .upload(`videos/${renamedFilename}`, fileBuffer, {
+                contentType: file.mimetype,
+                upsert: true,
+            });
+
+        if (error) {
+            console.error("Supabase upload error:", error);
+            return res.status(500).send("Upload to Supabase failed");
+        }
+
+        // Get public URL for the uploaded file
+        const { data: publicUrlData } = supabase
+            .storage
+            .from("projectai")
+            .getPublicUrl(`videos/${renamedFilename}`);
+        const publicUrl = publicUrlData.publicUrl;
+
+        console.log("TRYING TO INSERT IN SUPABASE METATABLE");
+
+        // Insert metadata row using the authenticated user ID
+        const { data: insertData, error: insertError } = await supabase
+            .from("metadata")
+            .insert([{
+                user_id: userId, // Use the authenticated user's ID
+                video_name: renamedFilename,
+                original_name: file.originalname,
+                video_url: publicUrl
+            }]);
+
+        if (insertError) {
+            console.error("❌ Error inserting metadata:", insertError);
+            // It's crucial to still return a response here to avoid a timeout
+            return res.status(500).send("Failed to save metadata");
+        }
+        
+        console.log("✅ Metadata saved successfully:", insertData);
+
+        // Delete local file after upload
+        await fsp.unlink(file.path);
+
+        // Return the renamed filename and public URL
+        res.status(200).json({
+            message: "Upload successful!",
+            videoName: renamedFilename,
+            originalName: file.originalname,
+            publicUrl: publicUrl
+        });
+
+    } catch (err) {
+        console.error("Upload error:", err);
+        res.status(500).send("Server error");
+    }
 });
 
 // Extracts frames from a video in Supabase, uploads them back, and cleans up.
@@ -968,6 +1182,3 @@ app.get('/api/metadata', async (req, res) => {
 app.listen(port, () => {
   console.log(`✅ Server running at http://localhost:${port}`);
 });
-
-
-
