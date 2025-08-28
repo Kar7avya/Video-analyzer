@@ -2,32 +2,41 @@ import React, { useState, useEffect } from 'react';
 
 function Dashboard() {
   const [metadataList, setMetadataList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const API_URL = 'http://localhost:8000/api/metadata';
+    const fetchMetadata = async () => {
+      const API_URL = 'http://localhost:8000/api/metadata';
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch(API_URL);
 
-    fetch(API_URL)
-      .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          const errorStatus = response.status;
+          const errorMessage = await response.json().then(data => data.error || `HTTP error! Status: ${errorStatus}`);
+          throw new Error(errorMessage);
         }
-        return response.json();
-      })
-      .then(data => {
+
+        const data = await response.json();
+        
         if (data.success) {
           setMetadataList(data.data);
         } else {
-          setError(data.error || 'Failed to load metadata');
+          throw new Error(data.error || 'Failed to load metadata');
         }
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Fetch error:', err);
-        setError(err.message || 'Error fetching data');
-        setLoading(false);
-      });
+        setError(err.message || 'An unexpected error occurred.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetadata();
   }, []);
 
   const countMetrics = (item) => {
@@ -89,7 +98,7 @@ function Dashboard() {
 
       <div className="container pb-5">
         {/* Enhanced Loading State */}
-        {loading && (
+        {isLoading && (
           <div className="text-center py-5">
             <div className="d-inline-flex align-items-center bg-white rounded-pill px-4 py-3 shadow-sm">
               <div className="spinner-border spinner-border-sm text-primary me-3" role="status">
@@ -118,7 +127,7 @@ function Dashboard() {
         )}
 
         {/* Main Content */}
-        {!loading && !error && (
+        {!isLoading && !error && (
           <>
             {metadataList.length > 0 ? (
               <div className="row g-4">
