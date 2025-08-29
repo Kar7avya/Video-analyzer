@@ -22,59 +22,17 @@ export default function Upload() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showTextArea, setShowTextArea] = useState(false);
+  const [manualTranscript, setManualTranscript] = useState("");
   const fileInputRef = useRef(null);
   const [userId, setUserId] = useState(null);
 
-  
-const getValidToken = () => {
-  try {
-    const token = localStorage.getItem("supabase.auth.token");
-    
-    if (!token) {
-      console.warn("No token found in localStorage");
-      return null;
-    }
-
-    // Parse and validate token structure if it's a JSON object
-    let accessToken;
+  const getValidToken = () => {
     try {
-      const parsedToken = JSON.parse(token);
-      accessToken = parsedToken.access_token;
-      
-      // Check if token is expired
-      if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
-        console.warn("Token has expired");
-        localStorage.removeItem("supabase.auth.token");
-        return null;
-      }
-    } catch (parseError) {
-      // If it's not JSON, assume it's the raw token
-      accessToken = token;
-    }
-
-    return accessToken;
-  } catch (error) {
-    console.error("Error getting token:", error);
-    return null;
-  }
-};
-
-
-        /////////////////////////////////////////////////
-        //////////////////
-        // Enhanced Upload.js with better token handling and debugging
-
-useEffect(() => {
-  const fetchUserId = async () => {
-    try {
-      // 1. Get token from localStorage with additional validation
       const token = localStorage.getItem("supabase.auth.token");
       
-      // Enhanced token validation
       if (!token) {
         console.warn("No token found in localStorage");
-        toast.error("Please log in to upload files.");
-        return;
+        return null;
       }
 
       // Parse and validate token structure if it's a JSON object
@@ -86,111 +44,109 @@ useEffect(() => {
         // Check if token is expired
         if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
           console.warn("Token has expired");
-          toast.error("Session expired. Please log in again.");
           localStorage.removeItem("supabase.auth.token");
-          return;
+          return null;
         }
       } catch (parseError) {
         // If it's not JSON, assume it's the raw token
         accessToken = token;
       }
 
-      if (!accessToken) {
-        console.warn("No access token found");
-        toast.error("Invalid session. Please log in again.");
-        return;
-      }
+      return accessToken;
+    } catch (error) {
+      console.error("Error getting token:", error);
+      return null;
+    }
+  };
 
-      console.log("Using token:", accessToken.substring(0, 20) + "..."); // Debug log (partial token)
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        // Get token from localStorage with additional validation
+        const token = localStorage.getItem("supabase.auth.token");
+        
+        // Enhanced token validation
+        if (!token) {
+          console.warn("No token found in localStorage");
+          toast.error("Please log in to upload files.");
+          return;
+        }
 
-      // 2. Fetch data from the backend
-      const response = await fetch("http://localhost:8000/getUser", {
-        method: "GET",
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      console.log("Response status:", response.status); // Debug log
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Response data:", data); // Debug log
-        
-        if (data.user && data.user.id) {
-          setUserId(data.user.id);
-          console.log("Fetched User ID:", data.user.id);
-        } else {
-          console.warn("No user data found in response");
-          toast.error("User not logged in. Please log in to upload files.");
-        }
-      } else {
-        // Handle specific error cases
-        if (response.status === 401) {
-          console.error("Authentication failed - token may be invalid or expired");
-          toast.error("Session expired. Please log in again.");
-          localStorage.removeItem("supabase.auth.token"); // Clear invalid token
-        } else {
-          console.error("Failed to fetch user:", response.status, response.statusText);
-          toast.error("Failed to fetch user info. Please try again.");
-        }
-        
-        // Try to get error details from response
+        // Parse and validate token structure if it's a JSON object
+        let accessToken;
         try {
-          const errorData = await response.json();
-          console.error("Error details:", errorData);
-        } catch (e) {
-          // Response might not be JSON
+          const parsedToken = JSON.parse(token);
+          accessToken = parsedToken.access_token;
+          
+          // Check if token is expired
+          if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
+            console.warn("Token has expired");
+            toast.error("Session expired. Please log in again.");
+            localStorage.removeItem("supabase.auth.token");
+            return;
+          }
+        } catch (parseError) {
+          // If it's not JSON, assume it's the raw token
+          accessToken = token;
         }
-      }
-    } catch (error) {
-      console.error("Network error fetching user:", error);
-      toast.error("Network error. Please check your connection.");
-    }
-  };
 
-  fetchUserId();
-}, []);
+        if (!accessToken) {
+          console.warn("No access token found");
+          toast.error("Invalid session. Please log in again.");
+          return;
+        }
 
-// Alternative: Get token directly from Supabase client (if you have it available)
-// This is often more reliable than localStorage
-/*
-useEffect(() => {
-  const fetchUserId = async () => {
-    try {
-      // Get session from Supabase client
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session?.access_token) {
-        console.warn("No valid session found");
-        toast.error("Please log in to upload files.");
-        return;
-      }
+        console.log("Using token:", accessToken.substring(0, 20) + "..."); // Debug log (partial token)
 
-      const response = await fetch("http://localhost:8000/getUser", {
-        method: "GET",
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      // ... rest of the fetch logic
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      toast.error("An error occurred while fetching user info.");
-    }
-  };
-
-  fetchUserId();
-}, []);
-*/
-        ////////////
-        ///////////////
+        // Fetch data from the backend
+        const response = await fetch("http://localhost:8000/getUser", {
+          method: "GET",
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+        });
         
-       
- 
+        console.log("Response status:", response.status); // Debug log
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Response data:", data); // Debug log
+          
+          if (data.user && data.user.id) {
+            setUserId(data.user.id);
+            console.log("Fetched User ID:", data.user.id);
+          } else {
+            console.warn("No user data found in response");
+            toast.error("User not logged in. Please log in to upload files.");
+          }
+        } else {
+          // Handle specific error cases
+          if (response.status === 401) {
+            console.error("Authentication failed - token may be invalid or expired");
+            toast.error("Session expired. Please log in again.");
+            localStorage.removeItem("supabase.auth.token"); // Clear invalid token
+          } else {
+            console.error("Failed to fetch user:", response.status, response.statusText);
+            toast.error("Failed to fetch user info. Please try again.");
+          }
+          
+          // Try to get error details from response
+          try {
+            const errorData = await response.json();
+            console.error("Error details:", errorData);
+          } catch (e) {
+            // Response might not be JSON
+          }
+        }
+      } catch (error) {
+        console.error("Network error fetching user:", error);
+        toast.error("Network error. Please check your connection.");
+      }
+    };
+
+    fetchUserId();
+  }, []);
 
   useEffect(() => {
     if (file) {
@@ -253,7 +209,7 @@ useEffect(() => {
     e.preventDefault();
 
     if (!file) {
-      toast.error("❗ Please select a video or audio file!");
+      toast.error("Please select a video or audio file!");
       return;
     }
 
@@ -265,114 +221,74 @@ useEffect(() => {
     setPublicUrl("");
 
     try {
-  toast.info("⬆️ Uploading file to Supabase...");
-  
-  // Get valid token before upload
-  const accessToken = getValidToken(); // Use the helper function from previous code
-  
-  if (!accessToken) {
-    throw new Error("Authentication token not found. Please log in again.");
-  }
-
-  if (!userId) {
-    throw new Error("User ID not found. Please refresh and try again.");
-  }
-
-  console.log("Starting upload with token:", accessToken.substring(0, 20) + "...");
-  console.log("User ID:", userId);
-  console.log("File:", file.name, file.size, "bytes");
-
-  const formData = new FormData();
-  formData.append("myvideo", file);
-  formData.append("user_id", userId);
-
-  const uploadRes = await fetch("http://localhost:8000/upload", {
-    method: "POST",
-    headers: {
-      'Authorization': `Bearer ${accessToken}`, // ✅ This was missing!
-      // Don't set Content-Type - browser will set it automatically for FormData
-    },
-    body: formData,
-  });
-
-  console.log("Upload response status:", uploadRes.status);
-
-  if (!uploadRes.ok) {
-    let errorText;
-    try {
-      const errorJson = await uploadRes.json();
-      errorText = errorJson.error || JSON.stringify(errorJson);
-    } catch {
-      errorText = await uploadRes.text();
-    }
-    
-    console.error("Upload failed:", uploadRes.status, errorText);
-    
-    // Handle specific error cases
-    if (uploadRes.status === 401) {
-      toast.error("Authentication failed. Please log in again.");
-      localStorage.removeItem("supabase.auth.token");
-      // You might want to redirect to login or refresh the page
-      return;
-    }
-    
-    throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
-  }
-
-  const uploadData = await uploadRes.json();
-  console.log("Upload successful:", uploadData);
-  
-  const uploadedFilename = uploadData.videoName;
-  const uploadPublicUrl = uploadData.publicUrl;
-
-  if (!uploadedFilename) {
-    throw new Error("No filename received from server");
-  }
-
-  setFilename(uploadedFilename);
-  setPublicUrl(uploadPublicUrl);
-  toast.success("✅ File uploaded to Supabase and metadata saved successfully!");
-  
-} catch (error) {
-  console.error("Upload error:", error);
-  toast.error(`Upload failed: ${error.message}`);
-}
-
-// Helper function to get valid token (add this to your component if not already present)
-// const getValidToken = () => {
-//   try {
-//     const token = localStorage.getItem("supabase.auth.token");
-    
-//     if (!token) {
-//       console.warn("No token found in localStorage");
-//       return null;
-//     }
-
-//     // Parse and validate token structure if it's a JSON object
-//     let accessToken;
-//     try {
-//       const parsedToken = JSON.parse(token);
-//       accessToken = parsedToken.access_token;
+      toast.info("Uploading file to Supabase...");
       
-//       // Check if token is expired
-//       if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
-//         console.warn("Token has expired");
-//         localStorage.removeItem("supabase.auth.token");
-//         return null;
-//       }
-//     } catch (parseError) {
-//       // If it's not JSON, assume it's the raw token
-//       accessToken = token;
-//     }
+      // Get valid token before upload
+      const accessToken = getValidToken();
+      
+      if (!accessToken) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
 
-//     return accessToken;
-//   } catch (error) {
-//     console.error("Error getting token:", error);
-//     return null;
-//   }
-// };
+      if (!userId) {
+        throw new Error("User ID not found. Please refresh and try again.");
+      }
 
-      toast.info("🖼️ Extracting frames (if video)...");
+      console.log("Starting upload with token:", accessToken.substring(0, 20) + "...");
+      console.log("User ID:", userId);
+      console.log("File:", file.name, file.size, "bytes");
+
+      const formData = new FormData();
+      formData.append("myvideo", file);
+      formData.append("user_id", userId);
+
+      const uploadRes = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          // Don't set Content-Type - browser will set it automatically for FormData
+        },
+        body: formData,
+      });
+
+      console.log("Upload response status:", uploadRes.status);
+
+      if (!uploadRes.ok) {
+        let errorText;
+        try {
+          const errorJson = await uploadRes.json();
+          errorText = errorJson.error || JSON.stringify(errorJson);
+        } catch {
+          errorText = await uploadRes.text();
+        }
+        
+        console.error("Upload failed:", uploadRes.status, errorText);
+        
+        // Handle specific error cases
+        if (uploadRes.status === 401) {
+          toast.error("Authentication failed. Please log in again.");
+          localStorage.removeItem("supabase.auth.token");
+          return;
+        }
+        
+        throw new Error(`Upload failed (${uploadRes.status}): ${errorText}`);
+      }
+
+      const uploadData = await uploadRes.json();
+      console.log("Upload successful:", uploadData);
+      
+      const uploadedFilename = uploadData.videoName;
+      const uploadPublicUrl = uploadData.publicUrl;
+
+      if (!uploadedFilename) {
+        throw new Error("No filename received from server");
+      }
+
+      setFilename(uploadedFilename);
+      setPublicUrl(uploadPublicUrl);
+      toast.success("File uploaded to Supabase and metadata saved successfully!");
+
+      toast.info("Extracting frames (if video)...");
       const extractForm = new FormData();
       extractForm.append("videoName", uploadedFilename);
 
@@ -384,28 +300,28 @@ useEffect(() => {
       if (!extractRes.ok) {
         const errorText = await extractRes.text();
         console.warn(`Frame extraction might have failed or not applicable: ${errorText}`);
-        toast.warn("🖼️ Frame extraction skipped or failed (might be an audio file).");
+        toast.warn("Frame extraction skipped or failed (might be an audio file).");
       } else {
-        toast.success("✅ Frames extracted (if video)!");
+        toast.success("Frames extracted (if video)!");
       }
 
-      toast.info("🤖 Analyzing frames with Gemini (if video)...");
+      toast.info("Analyzing frames with Gemini (if video)...");
       const analyzeRes = await fetch("http://localhost:8000/analyzeAllFrames");
 
       if (!analyzeRes.ok) {
         const errText = await analyzeRes.text();
         console.warn(`Frame analysis might have failed or not applicable: ${errText}`);
-        toast.warn("🤖 Frame analysis skipped or failed (might be an audio file).");
+        toast.warn("Frame analysis skipped or failed (might be an audio file).");
       } else {
         const analyzeData = await analyzeRes.json();
         const frames = Array.isArray(analyzeData)
           ? analyzeData
           : analyzeData.responses || [];
         setResponses(frames.map((item) => `${item.file}: ${item.description}`));
-        toast.success("✅ Frame analysis complete (if video)!");
+        toast.success("Frame analysis complete (if video)!");
       }
 
-      toast.info("🗣️ Transcribing with ElevenLabs...");
+      toast.info("Transcribing with ElevenLabs...");
       const elevenForm = new FormData();
       elevenForm.append("videoName", uploadedFilename);
 
@@ -426,9 +342,9 @@ useEffect(() => {
           : JSON.stringify(elevenData.transcript, null, 2);
 
       setElevenLabsTranscript(elevenTranscript);
-      toast.success("✅ ElevenLabs transcription done!");
+      toast.success("ElevenLabs transcription done!");
 
-      toast.info("🧠 Transcribing with Deepgram...");
+      toast.info("Transcribing with Deepgram...");
       const deepgramForm = new FormData();
       deepgramForm.append("videoName", uploadedFilename);
 
@@ -445,103 +361,45 @@ useEffect(() => {
       const deepgramData = await deepgramRes.json();
       const deepgramTranscript = deepgramData.transcript || "No transcript from Deepgram";
       setDeepgramTranscript(deepgramTranscript);
-      toast.success("✅ Deepgram transcription done!");
+      toast.success("Deepgram transcription done!");
 
-
-
-
-
-
-
-    
-
-  //     if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
-  //       toast.info("✨ Analyzing speech with Gemini...");
-  //       try {
-  //         const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
-  //           method: "POST",
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //           },
-  //           body: JSON.stringify({ transcript: deepgramTranscript, videoName: uploadedFilename }),
-  //         });
-
-  //         if (!analysisRes.ok) {
-  //           let errorMessage = analysisRes.statusText;
-  //           try {
-  //             const errorData = await analysisRes.json();
-  //             errorMessage = errorData.error || errorMessage;
-  //           } catch (parseError) {
-  //             console.warn("Could not parse error response as JSON");
-  //           }
-  //           throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
-  //         }
-
-  //         const analysisData = await analysisRes.json();
-  //         setLlmAnalysisResult(analysisData.analysis);
-  //         toast.success("✅ Speech analysis by Gemini complete!");
-  //         console.log("Speech Analysis by Gemini:", analysisData.analysis);
-  //       } catch (analysisErr) {
-  //         console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
-  //         toast.error("❌ Speech analysis failed. Check console for details.");
-  //       }
-  //     } else {
-  //       console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
-  //       toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
-  //     }
-  //   } catch (err) {
-  //     console.error("Upload/Processing Error:", err.message || err);
-  //     toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-try {
-  if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
-    toast.info("✨ Analyzing speech with Gemini...");
-    try {
-      const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript: deepgramTranscript,
-          videoName: uploadedFilename,
-        }),
-      });
-
-      if (!analysisRes.ok) {
-        let errorMessage = analysisRes.statusText;
+      if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
+        toast.info("Analyzing speech with Gemini...");
         try {
-          const errorData = await analysisRes.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {}
-        throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
+          const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: deepgramTranscript,
+              videoName: uploadedFilename,
+            }),
+          });
+
+          if (!analysisRes.ok) {
+            let errorMessage = analysisRes.statusText;
+            try {
+              const errorData = await analysisRes.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch (parseError) {}
+            throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
+          }
+
+          const analysisData = await analysisRes.json();
+          setLlmAnalysisResult(analysisData.analysis);
+          toast.success("Speech analysis by Gemini complete!");
+        } catch (analysisErr) {
+          toast.error("Speech analysis failed. Check console for details.");
+        }
+      } else {
+        toast.info("No Deepgram transcript found for speech analysis.");
       }
-
-      const analysisData = await analysisRes.json();
-      setLlmAnalysisResult(analysisData.analysis);
-      toast.success("✅ Speech analysis by Gemini complete!");
-    } catch (analysisErr) {
-      toast.error("❌ Speech analysis failed. Check console for details.");
+    } catch (err) {
+      console.error("Upload/Processing Error:", err.message || err);
+      toast.error(`Operation failed: ${err.message || "An unknown error occurred."}`);
+    } finally {
+      setLoading(false);
     }
-  } else {
-    toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
-  }
-} catch (err) {
-  console.error("Upload/Processing Error:", err.message || err);
-  toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
-} finally {
-  setLoading(false);
-}
-
-
-
-
-
-
-
-
-  const [manualTranscript, setManualTranscript] = useState("");
+  };
 
   const handleManualTextAnalysis = async () => {
     if (!manualTranscript.trim()) {
@@ -553,7 +411,7 @@ try {
     setLlmAnalysisResult("");
 
     try {
-      toast.info("✨ Analyzing text with Gemini...");
+      toast.info("Analyzing text with Gemini...");
       const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
         method: "POST",
         headers: {
@@ -575,11 +433,11 @@ try {
 
       const analysisData = await analysisRes.json();
       setLlmAnalysisResult(analysisData.analysis);
-      toast.success("✅ Text analysis by Gemini complete!");
+      toast.success("Text analysis by Gemini complete!");
       console.log("Text Analysis by Gemini:", analysisData.analysis);
     } catch (error) {
       console.error("Text Analysis Error:", error.message || error);
-      toast.error(`❌ Text analysis failed: ${error.message || "An unknown error occurred."}`);
+      toast.error(`Text analysis failed: ${error.message || "An unknown error occurred."}`);
     } finally {
       setLoading(false);
     }
@@ -698,7 +556,7 @@ try {
 
             {filename && publicUrl && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md text-center border border-gray-200">
-                <h4 className="text-2xl font-semibold mb-4 text-gray-800">🎬 Uploaded File: <span className="text-indigo-600">{filename}</span></h4>
+                <h4 className="text-2xl font-semibold mb-4 text-gray-800">Uploaded File: <span className="text-indigo-600">{filename}</span></h4>
                 {file && file.type.startsWith("video/") ? (
                   <video
                     src={publicUrl}
@@ -718,7 +576,7 @@ try {
 
             {responses.length > 0 && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
-                <h3 className="text-3xl font-bold mb-6 text-gray-800">🖼️ Gemini Frame Analysis</h3>
+                <h3 className="text-3xl font-bold mb-6 text-gray-800">Gemini Frame Analysis</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {responses.map((res, index) => {
                     const [imgFile, ...desc] = res.split(": ");
@@ -739,7 +597,7 @@ try {
 
             {elevenLabsTranscript && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
-                <h3 className="text-3xl font-bold mb-6 text-gray-800">🗣️ ElevenLabs Transcript</h3>
+                <h3 className="text-3xl font-bold mb-6 text-gray-800">ElevenLabs Transcript</h3>
                 <div className="bg-gray-50 p-6 rounded-md overflow-auto max-h-96 border border-gray-200">
                   <pre className="whitespace-pre-wrap font-mono text-base text-gray-700 leading-relaxed">{elevenLabsTranscript}</pre>
                 </div>
@@ -748,7 +606,7 @@ try {
 
             {deepgramTranscript && (
               <div className="mt-8 p-6 bg-white rounded-lg shadow-md border border-gray-200">
-                <h3 className="text-3xl font-bold mb-6 text-gray-800">🧠 Deepgram Transcript (with filler words & pauses)</h3>
+                <h3 className="text-3xl font-bold mb-6 text-gray-800">Deepgram Transcript (with filler words & pauses)</h3>
                 <div className="bg-gray-50 p-6 rounded-md overflow-auto max-h-96 border border-gray-200">
                   <pre className="whitespace-pre-wrap font-mono text-base text-gray-700 leading-relaxed">{deepgramTranscript}</pre>
                 </div>
@@ -757,7 +615,7 @@ try {
 
             {llmAnalysisResult && (
               <div id="speech-analysis-output" className="mt-8 p-8 bg-indigo-50 rounded-xl shadow-lg border border-indigo-200">
-                <h3 className="text-3xl font-bold mb-6 text-indigo-800">✨ Gemini AI Speech Analysis Report</h3>
+                <h3 className="text-3xl font-bold mb-6 text-indigo-800">Gemini AI Speech Analysis Report</h3>
                 <div className="bg-white p-6 rounded-lg shadow-inner overflow-auto max-h-96 border border-indigo-300">
                   <pre className="whitespace-pre-wrap font-mono text-base text-gray-800 leading-relaxed">{llmAnalysisResult}</pre>
                 </div>
@@ -814,7 +672,3 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
-
-
-
-
