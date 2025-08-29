@@ -26,7 +26,38 @@ export default function Upload() {
   const [userId, setUserId] = useState(null);
 
   
+const getValidToken = () => {
+  try {
+    const token = localStorage.getItem("supabase.auth.token");
+    
+    if (!token) {
+      console.warn("No token found in localStorage");
+      return null;
+    }
 
+    // Parse and validate token structure if it's a JSON object
+    let accessToken;
+    try {
+      const parsedToken = JSON.parse(token);
+      accessToken = parsedToken.access_token;
+      
+      // Check if token is expired
+      if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
+        console.warn("Token has expired");
+        localStorage.removeItem("supabase.auth.token");
+        return null;
+      }
+    } catch (parseError) {
+      // If it's not JSON, assume it's the raw token
+      accessToken = token;
+    }
+
+    return accessToken;
+  } catch (error) {
+    console.error("Error getting token:", error);
+    return null;
+  }
+};
 
 
         /////////////////////////////////////////////////
@@ -308,38 +339,38 @@ useEffect(() => {
 }
 
 // Helper function to get valid token (add this to your component if not already present)
-const getValidToken = () => {
-  try {
-    const token = localStorage.getItem("supabase.auth.token");
+// const getValidToken = () => {
+//   try {
+//     const token = localStorage.getItem("supabase.auth.token");
     
-    if (!token) {
-      console.warn("No token found in localStorage");
-      return null;
-    }
+//     if (!token) {
+//       console.warn("No token found in localStorage");
+//       return null;
+//     }
 
-    // Parse and validate token structure if it's a JSON object
-    let accessToken;
-    try {
-      const parsedToken = JSON.parse(token);
-      accessToken = parsedToken.access_token;
+//     // Parse and validate token structure if it's a JSON object
+//     let accessToken;
+//     try {
+//       const parsedToken = JSON.parse(token);
+//       accessToken = parsedToken.access_token;
       
-      // Check if token is expired
-      if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
-        console.warn("Token has expired");
-        localStorage.removeItem("supabase.auth.token");
-        return null;
-      }
-    } catch (parseError) {
-      // If it's not JSON, assume it's the raw token
-      accessToken = token;
-    }
+//       // Check if token is expired
+//       if (parsedToken.expires_at && Date.now() / 1000 > parsedToken.expires_at) {
+//         console.warn("Token has expired");
+//         localStorage.removeItem("supabase.auth.token");
+//         return null;
+//       }
+//     } catch (parseError) {
+//       // If it's not JSON, assume it's the raw token
+//       accessToken = token;
+//     }
 
-    return accessToken;
-  } catch (error) {
-    console.error("Error getting token:", error);
-    return null;
-  }
-};
+//     return accessToken;
+//   } catch (error) {
+//     console.error("Error getting token:", error);
+//     return null;
+//   }
+// };
 
       toast.info("🖼️ Extracting frames (if video)...");
       const extractForm = new FormData();
@@ -783,6 +814,7 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
 
 
 
