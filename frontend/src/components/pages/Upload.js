@@ -416,47 +416,99 @@ const getValidToken = () => {
       setDeepgramTranscript(deepgramTranscript);
       toast.success("✅ Deepgram transcription done!");
 
-      if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
-        toast.info("✨ Analyzing speech with Gemini...");
+
+
+
+
+
+
+    
+
+  //     if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
+  //       toast.info("✨ Analyzing speech with Gemini...");
+  //       try {
+  //         const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
+  //           method: "POST",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //           },
+  //           body: JSON.stringify({ transcript: deepgramTranscript, videoName: uploadedFilename }),
+  //         });
+
+  //         if (!analysisRes.ok) {
+  //           let errorMessage = analysisRes.statusText;
+  //           try {
+  //             const errorData = await analysisRes.json();
+  //             errorMessage = errorData.error || errorMessage;
+  //           } catch (parseError) {
+  //             console.warn("Could not parse error response as JSON");
+  //           }
+  //           throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
+  //         }
+
+  //         const analysisData = await analysisRes.json();
+  //         setLlmAnalysisResult(analysisData.analysis);
+  //         toast.success("✅ Speech analysis by Gemini complete!");
+  //         console.log("Speech Analysis by Gemini:", analysisData.analysis);
+  //       } catch (analysisErr) {
+  //         console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
+  //         toast.error("❌ Speech analysis failed. Check console for details.");
+  //       }
+  //     } else {
+  //       console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
+  //       toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
+  //     }
+  //   } catch (err) {
+  //     console.error("Upload/Processing Error:", err.message || err);
+  //     toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+try {
+  if (deepgramTranscript && deepgramTranscript !== "No transcript from Deepgram") {
+    toast.info("✨ Analyzing speech with Gemini...");
+    try {
+      const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: deepgramTranscript,
+          videoName: uploadedFilename,
+        }),
+      });
+
+      if (!analysisRes.ok) {
+        let errorMessage = analysisRes.statusText;
         try {
-          const analysisRes = await fetch("http://localhost:8000/analyzeSpeechWithGemini", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ transcript: deepgramTranscript, videoName: uploadedFilename }),
-          });
-
-          if (!analysisRes.ok) {
-            let errorMessage = analysisRes.statusText;
-            try {
-              const errorData = await analysisRes.json();
-              errorMessage = errorData.error || errorMessage;
-            } catch (parseError) {
-              console.warn("Could not parse error response as JSON");
-            }
-            throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
-          }
-
-          const analysisData = await analysisRes.json();
-          setLlmAnalysisResult(analysisData.analysis);
-          toast.success("✅ Speech analysis by Gemini complete!");
-          console.log("Speech Analysis by Gemini:", analysisData.analysis);
-        } catch (analysisErr) {
-          console.error("Speech Analysis Error:", analysisErr.message || analysisErr);
-          toast.error("❌ Speech analysis failed. Check console for details.");
-        }
-      } else {
-        console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
-        toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
+          const errorData = await analysisRes.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {}
+        throw new Error(`Gemini speech analysis failed: ${errorMessage}`);
       }
-    } catch (err) {
-      console.error("Upload/Processing Error:", err.message || err);
-      toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
-    } finally {
-      setLoading(false);
+
+      const analysisData = await analysisRes.json();
+      setLlmAnalysisResult(analysisData.analysis);
+      toast.success("✅ Speech analysis by Gemini complete!");
+    } catch (analysisErr) {
+      toast.error("❌ Speech analysis failed. Check console for details.");
     }
-  };
+  } else {
+    toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
+  }
+} catch (err) {
+  console.error("Upload/Processing Error:", err.message || err);
+  toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
+} finally {
+  setLoading(false);
+}
+
+
+
+
+
+
+
 
   const [manualTranscript, setManualTranscript] = useState("");
 
@@ -731,5 +783,6 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
 
 
