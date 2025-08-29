@@ -449,7 +449,7 @@ const getValidToken = () => {
       } else {
         console.warn("No Deepgram transcript available for LLM analysis. Skipping speech analysis.");
         toast.info("ℹ️ No Deepgram transcript found for speech analysis.");
-      }
+      };
     } catch (err) {
       console.error("Upload/Processing Error:", err.message || err);
       toast.error(`❌ Operation failed: ${err.message || "An unknown error occurred."}`);
@@ -731,3 +731,4 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
