@@ -1,0 +1,182 @@
+import React, { useState } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
+
+export default function VoiceUpload() {
+  const [voiceFile, setVoiceFile] = useState(null);
+  const [scriptFile, setScriptFile] = useState(null);
+  const [scriptText, setScriptText] = useState("");
+  const [useTextMode, setUseTextMode] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [refinedAudioPublicUrl, setRefinedAudioPublicUrl] = useState(null);
+
+  const addLog = (message, type = "info") => {
+    setLogs((prev) => [...prev, { message, type }]);
+    console[type === "error" ? "error" : "log"](message);
+  };
+
+  const handleUpload = async () => {
+    if (!voiceFile) {
+      addLog("❌ Please select a voice file", "error");
+      return;
+    }
+    if (!scriptFile && !scriptText) {
+      addLog("❌ Please provide a script file or type a script", "error");
+      return;
+    }
+    setIsProcessing(true);
+    setRefinedAudioPublicUrl(null);
+    addLog("🚀 Starting the full voice synthesis workflow...");
+
+    // FIX: Replace the placeholder URL with a valid, publicly accessible one.
+    const validAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+
+    // Simulated upload workflow for now
+    setTimeout(() => {
+      setIsProcessing(false);
+      setRefinedAudioPublicUrl(validAudioUrl);
+      addLog("✅ Workflow complete! Refined audio is ready.");
+    }, 2000);
+  };
+
+  const playRefinedAudio = () => {
+    if (!refinedAudioPublicUrl) {
+      addLog("No refined audio to play.", "error");
+      return;
+    }
+    try {
+      addLog("🎧 Streaming audio from public URL...");
+      const audio = new Audio(refinedAudioPublicUrl);
+      audio.play();
+      addLog("✅ Playing audio.");
+    } catch (err) {
+      addLog("❌ Error playing audio: " + err.message, "error");
+    }
+  };
+
+  return (
+    <div className="container min-vh-100 d-flex justify-content-center align-items-center bg-light">
+      <div className="card shadow-lg rounded-4 p-4 w-100" style={{ maxWidth: "600px" }}>
+        <h2 className="text-center mb-4 text-primary fw-bold">
+          🎤 Voice & Script Upload
+        </h2>
+
+        {/* Voice File */}
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Select Voice File</label>
+          <input
+            type="file"
+            accept="audio/*"
+            className="form-control"
+            onChange={(e) => {
+              setVoiceFile(e.target.files[0]);
+              addLog("🎤 Voice file selected: " + e.target.files[0]?.name);
+              setUseTextMode(false);
+            }}
+          />
+        </div>
+
+        {/* Script Mode */}
+        <div className="mb-3">
+          <label className="form-label fw-semibold d-block">📜 Script Mode:</label>
+          <div className="form-check form-check-inline">
+            <input
+              type="radio"
+              id="file-upload"
+              name="script-mode"
+              className="form-check-input"
+              checked={!useTextMode}
+              onChange={() => setUseTextMode(false)}
+            />
+            <label className="form-check-label" htmlFor="file-upload">
+              File Upload
+            </label>
+          </div>
+          <div className="form-check form-check-inline">
+            <input
+              type="radio"
+              id="text-input"
+              name="script-mode"
+              className="form-check-input"
+              checked={useTextMode}
+              onChange={() => setUseTextMode(true)}
+            />
+            <label className="form-check-label" htmlFor="text-input">
+              Text Input
+            </label>
+          </div>
+        </div>
+
+        {/* Script Input */}
+        {useTextMode ? (
+          <div className="mb-3">
+            <textarea
+              value={scriptText}
+              onChange={(e) => {
+                setScriptText(e.target.value);
+                setScriptFile(null);
+              }}
+              placeholder="Type your script here..."
+              rows="5"
+              className="form-control"
+            />
+          </div>
+        ) : (
+          <div className="mb-3">
+            <input
+              type="file"
+              accept=".txt,.doc,.docx,.pdf"
+              className="form-control"
+              onChange={(e) => {
+                setScriptFile(e.target.files[0]);
+                addLog("📜 Script file selected: " + e.target.files[0]?.name);
+                setScriptText("");
+              }}
+            />
+          </div>
+        )}
+
+        {/* Upload Button */}
+        <button
+          onClick={handleUpload}
+          disabled={isProcessing}
+          className="btn btn-primary w-100 py-2 fw-semibold"
+        >
+          {isProcessing ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2"></span>
+              Processing...
+            </>
+          ) : (
+            "🚀 Upload & Refine Voice"
+          )}
+        </button>
+
+        {/* Play Button */}
+        {refinedAudioPublicUrl && (
+          <button
+            onClick={playRefinedAudio}
+            className="btn btn-success w-100 mt-3 fw-semibold"
+          >
+            ▶️ Play Refined Audio
+          </button>
+        )}
+
+        {/* Console Logs */}
+        <div className="mt-4 bg-dark text-light rounded-3 p-3" style={{ height: "200px", overflowY: "auto" }}>
+          <h6 className="fw-bold text-warning">📟 Console Output:</h6>
+          <ul className="mt-2 ps-3">
+            {logs.map((log, index) => (
+              <li
+                key={index}
+                className={log.type === "error" ? "text-danger" : "text-success"}
+              >
+                {log.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
