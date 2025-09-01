@@ -10,6 +10,8 @@ export default function VoiceUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [refinedAudioPublicUrl, setRefinedAudioPublicUrl] = useState(null);
 
+  const API_BASE_URL = "http://localhost:5000"; // Your backend URL
+
   const addLog = (message, type = "info") => {
     setLogs((prev) => [...prev, { message, type }]);
     console[type === "error" ? "error" : "log"](message);
@@ -20,23 +22,133 @@ export default function VoiceUpload() {
       addLog("❌ Please select a voice file", "error");
       return;
     }
-    if (!scriptFile && !scriptText) {
+    if (!scriptFile && !scriptText.trim()) {
       addLog("❌ Please provide a script file or type a script", "error");
       return;
     }
+
     setIsProcessing(true);
     setRefinedAudioPublicUrl(null);
     addLog("🚀 Starting the full voice synthesis workflow...");
 
-    // FIX: Replace the placeholder URL with a valid, publicly accessible one.
-    const validAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+    try {
+      // Step 1: Upload voice file
+      addLog("🎤 Uploading voice file...");
+      const voiceFormData = new FormData();
+      voiceFormData.append("voice", voiceFile);
 
-    // Simulated upload workflow for now
-    setTimeout(() => {
-      setIsProcessing(false);
-      setRefinedAudioPublicUrl(validAudioUrl);
+      const voiceUploadResponse = await fetch(`${API_BASE_URL}/voiceupload`, {
+        method: "POST",
+        body: voiceFormData,
+      });
+
+      if (!voiceUploadResponse.ok) {
+        const error = await voiceUploadResponse.json();
+        throw new Error(error.error || "Voice upload failed");
+      }
+
+      const voiceUploadResult = await voiceUploadResponse.json();
+      const voicePath = voiceUploadResult.path;
+      addLog("✅ Voice file uploaded successfully");
+
+      // Step 2: Upload script file (if using file mode)
+      let scriptPath = null;
+      if (!useTextMode && scriptFile) {
+        addLog("📜 Uploading script file...");
+        const scriptFormData = new FormData();
+        scriptFormData.append("script", scriptFile);
+
+        const scriptUploadResponse = await fetch(`${API_BASE_URL}/scriptupload`, {
+          method: "POST",
+          body: scriptFormData,
+        });
+
+        if (!scriptUploadResponse.ok) {
+          const error = await scriptUploadResponse.json();
+          throw new Error(error.error || "Script upload failed");
+        }
+
+        const scriptUploadResult = await scriptUploadResponse.json();
+        scriptPath = scriptUploadResult.path;
+        addLog("✅ Script file uploaded successfully");
+      }
+
+      // Step 3: Create ElevenLabs voice clone
+      addLog("🗣️ Creating ElevenLabs voice clone...");
+      const voiceCloneResponse = await fetch(`${API_BASE_URL}/create-elevenlabs-voice`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voicePath: voicePath,
+        }),
+      });
+
+      if (!voiceCloneResponse.ok) {
+        const error = await voiceCloneResponse.json();
+        throw new Error(error.error || "Voice cloning failed");
+      }
+
+      const voiceCloneResult = await voiceCloneResponse.json();
+      const elevenLabsVoiceId = voiceCloneResult.voiceId;
+      addLog(`✅ Voice clone created with ID: ${elevenLabsVoiceId}`);
+
+      // Step 4: Refine voice with script
+      addLog("🪄 Generating refined audio with script...");
+      const refinePayload = {
+        elevenLabsVoiceId: elevenLabsVoiceId,
+      };
+
+      if (useTextMode) {
+        refinePayload.scriptContent = scriptText;
+      } else {
+        refinePayload.scriptPath = scriptPath;
+      }
+
+      const refineResponse = await fetch(`${API_BASE_URL}/refinevoice`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(refinePayload),
+      });
+
+      if (!refineResponse.ok) {
+        const error = await refineResponse.json();
+        throw new Error(error.error || "Voice refinement failed");
+      }
+
+      const refineResult = await refineResponse.json();
+      const refinedPath = refineResult.refinedPath;
+      addLog("✅ Voice refined successfully");
+
+      // Step 5: Get public URL for the refined audio
+      addLog("🔗 Getting public URL for refined audio...");
+      const publicUrlResponse = await fetch(`${API_BASE_URL}/get-public-url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: refinedPath,
+        }),
+      });
+
+      if (!publicUrlResponse.ok) {
+        const error = await publicUrlResponse.json();
+        throw new Error(error.error || "Failed to get public URL");
+      }
+
+      const publicUrlResult = await publicUrlResponse.json();
+      setRefinedAudioPublicUrl(publicUrlResult.publicUrl);
       addLog("✅ Workflow complete! Refined audio is ready.");
-    }, 2000);
+
+    } catch (error) {
+      addLog(`❌ Error: ${error.message}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const playRefinedAudio = () => {
@@ -45,12 +157,34 @@ export default function VoiceUpload() {
       return;
     }
     try {
-      addLog("🎧 Streaming audio from public URL...");
+      addLog("🎧 Playing refined audio...");
       const audio = new Audio(refinedAudioPublicUrl);
-      audio.play();
-      addLog("✅ Playing audio.");
+      audio.play().then(() => {
+        addLog("✅ Audio playing successfully.");
+      }).catch((err) => {
+        addLog("❌ Error playing audio: " + err.message, "error");
+      });
     } catch (err) {
       addLog("❌ Error playing audio: " + err.message, "error");
+    }
+  };
+
+  const downloadRefinedAudio = () => {
+    if (!refinedAudioPublicUrl) {
+      addLog("No refined audio to download.", "error");
+      return;
+    }
+    try {
+      addLog("💾 Downloading refined audio...");
+      const link = document.createElement("a");
+      link.href = refinedAudioPublicUrl;
+      link.download = `refined_voice_${Date.now()}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addLog("✅ Download started.");
+    } catch (err) {
+      addLog("❌ Error downloading audio: " + err.message, "error");
     }
   };
 
@@ -58,7 +192,7 @@ export default function VoiceUpload() {
     <div className="container min-vh-100 d-flex justify-content-center align-items-center bg-light">
       <div className="card shadow-lg rounded-4 p-4 w-100" style={{ maxWidth: "600px" }}>
         <h2 className="text-center mb-4 text-primary fw-bold">
-          🎤 Voice & Script Upload
+          🎤 Voice Cloning & Script Synthesis
         </h2>
 
         {/* Voice File */}
@@ -71,9 +205,12 @@ export default function VoiceUpload() {
             onChange={(e) => {
               setVoiceFile(e.target.files[0]);
               addLog("🎤 Voice file selected: " + e.target.files[0]?.name);
-              setUseTextMode(false);
             }}
+            disabled={isProcessing}
           />
+          <small className="form-text text-muted">
+            Upload an audio file to clone the voice (MP3, WAV, etc.)
+          </small>
         </div>
 
         {/* Script Mode */}
@@ -87,6 +224,7 @@ export default function VoiceUpload() {
               className="form-check-input"
               checked={!useTextMode}
               onChange={() => setUseTextMode(false)}
+              disabled={isProcessing}
             />
             <label className="form-check-label" htmlFor="file-upload">
               File Upload
@@ -100,6 +238,7 @@ export default function VoiceUpload() {
               className="form-check-input"
               checked={useTextMode}
               onChange={() => setUseTextMode(true)}
+              disabled={isProcessing}
             />
             <label className="form-check-label" htmlFor="text-input">
               Text Input
@@ -110,6 +249,7 @@ export default function VoiceUpload() {
         {/* Script Input */}
         {useTextMode ? (
           <div className="mb-3">
+            <label className="form-label fw-semibold">Script Text</label>
             <textarea
               value={scriptText}
               onChange={(e) => {
@@ -119,10 +259,15 @@ export default function VoiceUpload() {
               placeholder="Type your script here..."
               rows="5"
               className="form-control"
+              disabled={isProcessing}
             />
+            <small className="form-text text-muted">
+              Enter the text you want the cloned voice to speak
+            </small>
           </div>
         ) : (
           <div className="mb-3">
+            <label className="form-label fw-semibold">Script File</label>
             <input
               type="file"
               accept=".txt,.doc,.docx,.pdf"
@@ -132,49 +277,82 @@ export default function VoiceUpload() {
                 addLog("📜 Script file selected: " + e.target.files[0]?.name);
                 setScriptText("");
               }}
+              disabled={isProcessing}
             />
+            <small className="form-text text-muted">
+              Upload a text file containing the script
+            </small>
           </div>
         )}
 
         {/* Upload Button */}
         <button
           onClick={handleUpload}
-          disabled={isProcessing}
-          className="btn btn-primary w-100 py-2 fw-semibold"
+          disabled={isProcessing || !voiceFile || (!scriptFile && !scriptText.trim())}
+          className="btn btn-primary w-100 py-2 fw-semibold mb-3"
         >
           {isProcessing ? (
             <>
               <span className="spinner-border spinner-border-sm me-2"></span>
-              Processing...
+              Processing Voice Clone...
             </>
           ) : (
-            "🚀 Upload & Refine Voice"
+            "🚀 Clone Voice & Generate Audio"
           )}
         </button>
 
-        {/* Play Button */}
+        {/* Audio Controls */}
         {refinedAudioPublicUrl && (
-          <button
-            onClick={playRefinedAudio}
-            className="btn btn-success w-100 mt-3 fw-semibold"
-          >
-            ▶️ Play Refined Audio
-          </button>
+          <div className="row g-2 mb-3">
+            <div className="col-6">
+              <button
+                onClick={playRefinedAudio}
+                className="btn btn-success w-100 fw-semibold"
+                disabled={isProcessing}
+              >
+                ▶️ Play Audio
+              </button>
+            </div>
+            <div className="col-6">
+              <button
+                onClick={downloadRefinedAudio}
+                className="btn btn-outline-primary w-100 fw-semibold"
+                disabled={isProcessing}
+              >
+                💾 Download
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Audio Player */}
+        {refinedAudioPublicUrl && (
+          <div className="mb-3">
+            <label className="form-label fw-semibold">🎧 Generated Audio:</label>
+            <audio controls className="w-100">
+              <source src={refinedAudioPublicUrl} type="audio/mpeg" />
+              Your browser does not support the audio element.
+            </audio>
+          </div>
         )}
 
         {/* Console Logs */}
         <div className="mt-4 bg-dark text-light rounded-3 p-3" style={{ height: "200px", overflowY: "auto" }}>
           <h6 className="fw-bold text-warning">📟 Console Output:</h6>
-          <ul className="mt-2 ps-3">
-            {logs.map((log, index) => (
-              <li
-                key={index}
-                className={log.type === "error" ? "text-danger" : "text-success"}
-              >
-                {log.message}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-2">
+            {logs.length === 0 ? (
+              <small className="text-muted">No logs yet...</small>
+            ) : (
+              logs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`small mb-1 ${log.type === "error" ? "text-danger" : "text-success"}`}
+                >
+                  {log.message}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
