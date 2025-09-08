@@ -685,7 +685,7 @@ import backgroundSpotlight from "./spotlightsblack1.jpg";
 // Supabase client initialization (API keys are needed even without auth)
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASEANONKEY
+    process.env.REACT_APP_SUPABASE_ANON_KEY
 );
 
 export default function Upload() {
@@ -1103,5 +1103,6 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
 
 
