@@ -681,6 +681,7 @@ import mic from "../pages/mic.png";
 import { createClient } from "@supabase/supabase-js";
 import backgroundSpotlight from "./spotlightsblack.jpg";
 
+
 // Supabase client initialization (API keys are needed even without auth)
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
@@ -1102,3 +1103,4 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
