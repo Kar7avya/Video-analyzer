@@ -679,7 +679,7 @@ import { FaCloudUploadAlt } from "react-icons/fa";
 import styled from 'styled-components';
 import mic from "../pages/mic.png";
 import { createClient } from "@supabase/supabase-js";
-import backgroundSpotlight from "./spotlightsblack.jpg";
+import backgroundSpotlight from "./spotlightsblack1.jpg";
 
 
 // Supabase client initialization (API keys are needed even without auth)
@@ -1103,4 +1103,5 @@ const StyledWrapper = styled.div`
     100% { transform: translateY(0); opacity: 1; }
   }
 `;
+
 
