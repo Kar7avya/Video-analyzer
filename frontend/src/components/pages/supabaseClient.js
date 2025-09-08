@@ -1,32 +1,11 @@
-
-
-// import { createClient } from '@supabase/supabase-js'
-
-// const supabaseUrl = process.env.REACT_APP_SUPABASE_URL 
-// const supabaseAnonKey = process.env.REACT_APP_SUPABASEANONKEY
-
-// const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-
-// export default supabase;
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-// Use REACT_APP_ keys so backend + frontend can share same .env
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("❌ Supabase env variables are missing!");
-  console.error("URL:", supabaseUrl, "KEY:", supabaseKey ? "✅" : "❌");
-  process.exit(1);
+  console.error("❌ Supabase environment variables are missing!");
 }
-
-// These lines are changed to show the actual values
-console.log("🔑 Supabase URL:", supabaseUrl);
-console.log("🔑 Supabase Key:", supabaseKey);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
