@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 
 // No need to import or configure dotenv.
 // Your build tool will handle these variables.
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.process.env.SUPABASE_URL  
+
+const supabaseKey = process.env.process.env.SUPABASE_ANON_KEY;
 
 // No need for a server-side check (process.exit)
 // The browser will log an error if keys are missing.
@@ -20,3 +21,4 @@ console.log("🔑 Supabase Key:", supabaseKey);
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default supabase;
+
