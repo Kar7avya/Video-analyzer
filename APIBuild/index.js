@@ -1343,7 +1343,7 @@ import { createClient } from "@supabase/supabase-js";
 import pgp from 'pg-promise';
 import dotenv from 'dotenv';
 import App from './App.js';
-
+import reportWebVitals from './reportWebVitals.js';
 // Load environment variables from .env file
 dotenv.config();
 
@@ -2075,3 +2075,4 @@ process.on('SIGINT', () => {
     console.log('🛑 SIGINT received, shutting down gracefully');
     process.exit(0);
 });
+
